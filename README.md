@@ -22,8 +22,7 @@ bilah pemakaian Free, dan peringatan batas habis memakai teal/indigo.
 
 Platform latihan komunikasi berbasis **Multi-Agent AI** (bukan video satu arah):
 Roleplay Agent jadi sparring partner, Evaluation Agent menilai dengan rubrik
-per skenario + bukti kutipan. **Login email + password** (NextAuth
-Credentials, hash scrypt), sesi 30 hari, data tiap akun terpisah.
+per skenario + bukti kutipan. **Login email + password** (sistem sesi custom, hash scrypt), sesi 30 hari, data tiap akun terpisah.
 Tidak perlu setup OAuth / login pihak ketiga sama sekali.
 
 - **4 pilar, 24 skenario:** Interpersonal (13), PR/Krisis (3), Marketing & Sales (3),
@@ -81,7 +80,7 @@ plan + status + trial end).
 ## Teknologi
 
 Next.js 14 (App Router, TypeScript) + Tailwind CSS + Prisma 5 + PostgreSQL.
-Auth: NextAuth v4 (Credentials provider, hash password scrypt, JWT, sesi 30 hari).
+Auth: sistem sesi custom (email + password, hash password scrypt, token sesi acak di database, cookie httpOnly, sesi 30 hari). Tanpa library auth eksternal.
 Database: gunakan Postgres hosted (Neon) lewat `DATABASE_URL`.
 
 ## 1) Login email + password (tidak perlu setup apa pun dari pihak ketiga)
@@ -107,8 +106,8 @@ Alurnya:
 ```bash
 npm install
 cp .env.example .env.local
-# Isi di .env.local: DATABASE_URL, NEXTAUTH_URL=http://localhost:3000,
-# NEXTAUTH_SECRET (string acak panjang).
+# Isi di .env.local: DATABASE_URL, SESSION_SECRET (string acak panjang).
+# OPENAI_API_KEY opsional — kosong = mesin rule-based.
 # OPENAI_API_KEY opsional — kosong = mesin rule-based.
 npx prisma db push             # JANGAN pakai `prisma migrate deploy` — repo ini tidak punya folder prisma/migrations/, jadi perintah itu tidak membuat tabel apa pun
 npm run dev                    # http://localhost:3000
@@ -118,10 +117,16 @@ Aplikasi **mulai kosong**: tidak ada akun demo dan tidak ada data contoh.
 Seed TIDAK berjalan saat deploy. Daftar pertama kali dengan form
 "Daftar dengan Email" — akun itu otomatis jadi paket **Free**.
 
-## 3) Push ke GitHub
+## 3) Upload ke GitHub (lewat web, langsung bisa)
 
 Repo ini adalah **root aplikasi Next.js** — `package.json` ada di root repo,
 **bukan** di dalam folder `phatica/`. Jadi di Vercel, **Root Directory dibiarkan kosong**.
+
+Tidak ada lagi nama file/folder dengan kurung siku `[ ]` di repo ini — folder rute auth catch-all dan folder rute sesi dinamis sudah dihapus dan diganti rute query-param
+(`detail?id=`, `message?id=`, `end?id=`), jadi **upload web GitHub
+(Add file → Upload files) langsung bisa**: download `phatica.zip`, extract,
+lalu drag **isi** folder hasil extract ke repo GitHub dan klik **Commit changes**.
+Tidak perlu GitHub Desktop dan tidak perlu terminal/git.
 
 ```bash
 cd phatica
@@ -147,8 +152,8 @@ git push -u origin main
 3. Di **Settings → Environment Variables** (Production), isi:
 
 - `DATABASE_URL` — connection string Postgres (Neon)
-- `NEXTAUTH_URL` — URL Vercel kamu, mis. `https://phatica.vercel.app`
-- `NEXTAUTH_SECRET` — string acak panjang (mis. `openssl rand -base64 32`)
+- `DATABASE_URL` — connection string Postgres (Neon)
+- `SESSION_SECRET` — string acak panjang (mis. `openssl rand -base64 32`)
 - `OPENAI_API_KEY` — opsional; kosong = AI rule-based
 
 Tidak ada kredensial lain yang dibutuhkan — login email + password tidak
@@ -194,20 +199,22 @@ src/lib/ai.ts             # Roleplay Agent, Adaptation Engine, Evaluation Agent
                           # (satu fungsi scoring per dimensi rubrik), Brand Audit,
                           # Content Coach — rule-based + OpenAI opsional
 src/lib/plans.ts          # Harga paket Free/Pro/Tim + trial 14 hari
-src/lib/auth.ts           # NextAuth v4: Credentials (email + password), JWT 30 hari
+src/lib/auth.ts           # Sesi custom: token acak (hash SHA-256 di DB), cookie httpOnly, 30 hari
 src/lib/password.ts       # Hash scrypt + verifikasi password
 src/lib/prisma.ts         # Prisma client
 src/lib/ensure.ts         # Buat baris Subscription/Memory/BrandProfile (default Free)
 src/app/page.tsx          # Landing + form Masuk/Daftar Email, Beranda, Pilih Skenario,
                           # Ruang Latihan, Hasil Evaluasi, Memori Saya,
                           # Personal Branding, Paket Langganan
-src/app/api/auth/[...nextauth]  # NextAuth (Credentials)
+src/app/api/auth/login    # Masuk email + password (401 bila salah)
+src/app/api/auth/logout   # Keluar, hapus sesi
 src/app/api/auth/register # Daftar email + password (409 bila email sudah terdaftar)
 src/app/api/auth/me       # {user:null} bila belum login
 src/app/api/scenarios     # 24 skenario (401 bila belum login)
 src/app/api/sessions      # Mulai sesi (cek batas Free + pilar paket) + daftar sesi
-src/app/api/sessions/[id]/message  # Balasan persona + adaptasi level
-src/app/api/sessions/[id]/end      # Evaluasi 6+ tool + update memori
+src/app/api/sessions/detail?id=   # Detail satu sesi
+src/app/api/sessions/message?id=  # Balasan persona + adaptasi level
+src/app/api/sessions/end?id=      # Evaluasi 6+ tool + update memori
 src/app/api/dashboard     # Progres, batas bulan ini, memori, paket
 src/app/api/memory        # Memori + Brand Profile
 src/app/api/brand/*       # Profil brand, Brand Audit, Content Coach
@@ -219,7 +226,7 @@ src/app/api/history       # Hapus semua riwayat & memori
 
 - **Login email + password, tanpa layanan email pengirim.** Yang sudah
   dites: form daftar/masuk tampil, API tanpa login mengembalikan 401,
-  dan NextAuth Credentials terpasang. Yang harus kamu tes setelah deploy:
+  dan sistem sesi custom terpasang. Yang harus kamu tes setelah deploy:
   daftar dengan email → masuk Beranda. **Reset password belum ada** —
   tidak ada tombol reset, karena tidak ada layanan email. Pengguna yang
   lupa password belum bisa memulihkan akunnya sendiri.

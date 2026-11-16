@@ -1,0 +1,174 @@
+// Phatica.ai — Prisma schema (PostgreSQL, Neon)
+// Set DATABASE_URL in .env.local / Vercel env vars.
+// TIDAK ada folder prisma/migrations/ — buat tabel dengan `npx prisma db push`.
+// Jangan pakai `prisma migrate deploy` di repo ini.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth email + password (scrypt hash, sesi server custom 30 hari) ---
+// Tidak ada provider login pihak ketiga, tidak ada kredensial OAuth,
+// tidak ada setup login eksternal.
+model User {
+  id           String    @id @default(cuid())
+  name         String?
+  email        String    @unique
+  passwordHash String
+  profile       LearnerProfile?
+  memory        LearnerMemory?
+  brandProfile  BrandProfile?
+  practice      PracticeSession[]
+  brandAudits   BrandAudit[]
+  contentReviews ContentReview[]
+  subscription  Subscription?
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+}
+
+// --- Sesi login (token acak, disimpan sebagai hash SHA-256) ---
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// --- Phatica ---
+model LearnerProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LearnerMemory {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  styleTraits   String   @default("") // dipisah koma
+  strengths     String   @default("")
+  weaknesses    String   @default("") // format: "kelemahan (n×)" dipisah |
+  weaknessCounts String  @default("{}") // JSON {label: count}
+  lastRecap     String   @default("") @db.Text
+  lastScenario  String   @default("")
+  totalSessions Int      @default(0)
+  totalTurns    Int      @default(0)
+  levels        String   @default("{}") // JSON {pillar: level 1-5}
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PracticeSession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenarioId  String
+  pillar      String
+  level       Int      @default(3)
+  status      String   @default("active") // active | finished
+  messages    SessionMessage[]
+  adaptations AdaptationEvent[]
+  evaluation  Evaluation?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SessionMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String   // user | persona
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model AdaptationEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fromLevel Int
+  toLevel   Int
+  signal    String   // mis. "dominating" | "struggling" | "steady"
+  reason    String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model Evaluation {
+  id           String   @id @default(cuid())
+  sessionId    String   @unique
+  session      PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  verdict      String   @db.Text
+  overall      Int
+  scores       String   // JSON [{key,label,score,weight}]
+  quotes       String   // JSON string[] — tepat 3 kutipan bukti
+  blindSpot    String   @db.Text
+  alternative  String   @db.Text
+  drill        String   @db.Text
+  comparison   String   @default("") @db.Text
+  patterns     String   @default("") // pola berbahaya yang terdeteksi, dipisah koma
+  recurring    String   @default("") // kelemahan berulang dari memori
+  toolTrace    String   @default("[]") @db.Text // JSON [{tool,input,output,durationMs}]
+  createdAt    DateTime @default(now())
+}
+
+model BrandProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  niche       String   @default("")
+  audience    String   @default("")
+  values      String   @default("") // maks 3, dipisah koma
+  tone        String   @default("")
+  credibility String   @default("") @db.Text // bukti: tahun pengalaman, seminar, dsb.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BrandAudit {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio       String   @db.Text
+  posts     String   @default("") @db.Text
+  scores    String   // JSON [{key,label,score}]
+  rewrite   String   @db.Text // bio baru siap pakai
+  toolTrace String   @default("[]") @db.Text
+  createdAt DateTime @default(now())
+}
+
+model ContentReview {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft     String   @db.Text
+  platform  String   @default("Threads")
+  scores    String   // JSON [{key,label,score}] — Hook, Kejelasan, Kejujuran
+  hooks     String   // JSON string[] — tepat 3 hook rewrite
+  toolTrace String   @default("[]") @db.Text
+  createdAt DateTime @default(now())
+}
+
+// --- Langganan SaaS (harga SAMA dengan ruang Muse) ---
+// Free Rp0 | Pro Rp99.000/bln atau Rp79.200/bln tahunan (Rp950.400/thn)
+// Tim/Institusi mulai Rp1.500.000/bln/tim (s.d. 10 anggota). Trial Pro 14 hari.
+// Pembayaran: SIMULASI saja — belum ada transaksi nyata / Midtrans live.
+model Subscription {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        String    @default("free") // free | pro | tim
+  status      String    @default("active") // active | trialing | cancelled
+  trialEndsAt DateTime?
+  renewsAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
