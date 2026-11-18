@@ -48,6 +48,28 @@ export async function destroySession() {
   store.set(COOKIE_NAME, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
 }
 
+export async function destroyAllSessions(userId: string) {
+  await prisma.session.deleteMany({ where: { userId } });
+}
+
+/** Hapus semua sesi pengguna KECUALI sesi yang sedang dipakai (dari cookie saat ini).
+ * Dipakai setelah ganti password: perangkat lain harus masuk lagi,
+ * sesi di perangkat ini tetap jalan. */
+export async function destroyOtherSessions(userId: string) {
+  try {
+    const token = cookies().get(COOKIE_NAME)?.value;
+    if (!token) {
+      await destroyAllSessions(userId);
+      return;
+    }
+    await prisma.session.deleteMany({
+      where: { userId, tokenHash: { not: hashToken(token) } },
+    });
+  } catch {
+    // Abaikan — ganti password tetap berhasil walau sesi lain tidak terhapus.
+  }
+}
+
 export async function getServerUser() {
   try {
     const token = cookies().get(COOKIE_NAME)?.value;

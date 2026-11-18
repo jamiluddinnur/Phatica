@@ -8,10 +8,15 @@ export async function DELETE() {
     prisma.adaptationEvent.deleteMany({ where: { session: { userId: user.id } } }),
     prisma.sessionMessage.deleteMany({ where: { session: { userId: user.id } } }),
     prisma.practiceSession.deleteMany({ where: { userId: user.id } }),
+    prisma.customRoleplay.deleteMany({ where: { userId: user.id } }),
+    prisma.customScenario.deleteMany({ where: { userId: user.id } }),
+    prisma.customPillar.deleteMany({ where: { userId: user.id } }),
     prisma.brandAudit.deleteMany({ where: { userId: user.id } }),
     prisma.contentReview.deleteMany({ where: { userId: user.id } }),
     prisma.learnerMemory.deleteMany({ where: { userId: user.id } }),
     prisma.brandProfile.deleteMany({ where: { userId: user.id } }),
+    prisma.drill.deleteMany({ where: { userId: user.id } }),
+    prisma.diagnostic.deleteMany({ where: { userId: user.id } }),
   ]);
   return NextResponse.json({ ok: true });
 }

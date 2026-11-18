@@ -6,6 +6,8 @@
    dangerous-pattern alert, recurring-weakness markers, error messages. Never on brand buttons/bars. */
 :root{--indigo:#191641;--indigo-soft:#e6e5f2;--teal:#14b8a6;--teal-deep:#0d9488;--danger:#b91c1c;--ink:#191641;--muted:#5b5878;--line:#e8e4d8;--bg:#fffbf5;--card:#ffffff}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px;border-radius:6px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
 a{color:var(--teal-deep)}button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-weight:600}
 .btn{background:var(--teal);color:#fff}.btn:hover{background:var(--teal-deep)}
 .btn-indigo{background:var(--indigo);color:#fff}.btn-indigo:hover{background:#2a2766}

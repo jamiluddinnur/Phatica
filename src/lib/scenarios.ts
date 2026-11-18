@@ -6,6 +6,7 @@ export type Scenario = {
   context: string; opening: string; goal: string; baseDifficulty: number;
   durationLabel: string; evaluatorMode: string; fourthLabel: string;
   rubric: RubricItem[]; verdictHint: string;
+  modelAnswer: string; tip: string;
 };
 
 export const PILLARS = ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding"] as const;
@@ -25,6 +26,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "relevansi", label: "Nyambung dengan Posisi", rubric: "apakah jawaban menghubungkan pengalaman pembelajar dengan kebutuhan posisi yang dilamar", weight: 0.25 },
     ],
     verdictHint: "Putusan harus berbentuk: apakah pelamar ini lolos ke tahap berikutnya, hampir lolos, atau belum lolos — dan kenapa dalam satu kalimat.",
+    modelAnswer: "Saya lulusan pemasaran yang selama magang menaikkan penjualan toko online tempat saya magang sebesar 30 persen dalam 3 bulan, dengan cara menguji 5 iklan berbeda dan mempertahankan yang paling laku. Saya ingin membawa cara kerja yang sama ke sini.",
+    tip: "Pelajaran 2 menit: jawaban wawancara yang kuat punya 3 bagian - situasi, tindakan, hasil. Jangan mulai dari sifatmu ('saya pekerja keras'), mulai dari hasil yang bisa diukur, baru ceritakan caranya.",
   },
   {
     id: "interpersonal-wawancara-beasiswa", title: "Wawancara Beasiswa — LPDP / Luar Negeri", pillar: "Interpersonal",
@@ -39,6 +42,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "kontribusi", label: "Rencana Kontribusi Setelah Lulus", rubric: "apakah rencana pulang dan berkontribusi konkret: bidang, pihak yang dibantu, langkah pertama — bukan janji abstrak", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk: apakah kandidat ini lolos seleksi wawancara, hampir lolos, atau belum lolos — dan kenapa dalam satu kalimat.",
+    modelAnswer: "Saya memilih jurusan ini karena selama 2 tahun saya mengajar anak-anak di desa saya dan melihat sendiri 40 persen dari mereka putus sekolah. Setelah lulus, saya akan kembali dan membangun program belajar gratis - langkah pertamanya sudah saya mulai dengan kelas kecil 15 anak.",
+    tip: "Pelajaran 2 menit: panel beasiswa menguji konsistensi - masa lalumu, pilihan studimu, dan rencanamu harus nyambung jadi satu cerita. Kalau satu bagian tidak nyambung, mereka akan mengejarnya.",
   },
   {
     id: "interpersonal-orang-tua", title: "Menghadapi Orang Tua yang Menuntut", pillar: "Interpersonal",
@@ -53,6 +58,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah percakapan ini berakhir dengan orang tua mau mendengarkan, masih ragu, atau justru makin menutup diri.",
+    modelAnswer: "Ayah, saya paham Ayah khawatir karena Ayah sudah berkorban banyak. Saya tidak menolak jalan Ayah begitu saja - saya sudah menghitungnya: dalam 1 tahun saya akan coba bidang ini sambil tetap menabung, dan kalau tidak ada hasil, saya akan kembali mendiskusikannya dengan Ayah.",
+    tip: "Pelajaran 2 menit: sebelum menyampaikan pendapat yang berbeda, akui dulu kekhawatiran lawan bicara dengan kata-katamu sendiri. Orang yang merasa didengar jauh lebih mau mendengarkan.",
   },
   {
     id: "interpersonal-minta-maaf", title: "Minta Maaf dan Memperbaiki Hubungan", pillar: "Interpersonal",
@@ -67,6 +74,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah Rani mulai mau memaafkan dan percaya lagi, masih ragu, atau justru makin menjauh.",
+    modelAnswer: "Rani, kamu benar - saya melanggar janji dan itu membuatmu merasa tidak diprioritaskan. Saya salah. Besok saya akan datang jam 5 seperti yang sudah kita sepakati, dan saya akan kabari kamu dulu kalau ada perubahan.",
+    tip: "Pelajaran 2 menit: permintaan maaf yang baik punya 3 bagian - akui dampaknya, jangan membela diri, dan tawarkan perbaikan yang konkret dengan waktu yang jelas.",
   },
   {
     id: "interpersonal-phk", title: "Menghadapi PHK Mendadak & Negosiasi Pesangon", pillar: "Interpersonal",
@@ -81,6 +90,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "ketenangan_tegas", label: "Tenang tapi Tegas", rubric: "apakah pembelajar tetap tenang, tidak menandatangani/menyetujui apa pun karena panik atau tekanan, dan berani menunda keputusan untuk berpikir", weight: 0.35 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah kamu keluar dari ruangan ini dengan hakmu terlindungi, sebagian terlindungi, atau justru menandatangani dalam panik.",
+    modelAnswer: "Baik, saya dengar keputusannya. Sebelum saya tanda tangan, saya minta rincian pesangon saya secara tertulis - berapa bulan gaji dan hak-hak lain yang saya terima. Saya akan pelajari dulu malam ini dan kembali besok.",
+    tip: "Pelajaran 2 menit: saat tertekan, jangan menandatangani apa pun. Minta semuanya tertulis, minta waktu berpikir, dan tanyakan hakmu dengan tenang - itu bukan melawan, itu menjaga dirimu.",
   },
   {
     id: "interpersonal-teguran", title: "Menerima Teguran Keras Atasan Tanpa Defensif", pillar: "Interpersonal",
@@ -95,6 +106,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah teguran ini berakhir membuat atasan percaya kamu bisa berubah, masih meragukanmu, atau justru makin kecewa.",
+    modelAnswer: "Baik Bu, saya dengar tegurannya dan saya paham dampaknya ke tim. Saya salah di bagian laporan yang telat 2 hari. Saya akan perbaiki hari ini dan mulai besok saya kirim progres tiap sore supaya tidak terulang.",
+    tip: "Pelajaran 2 menit: teguran keras paling cepat reda kalau kamu tidak membela diri dulu. Akui bagiannya, sebutkan apa yang akan kamu perbaiki, dan kapan.",
   },
   {
     id: "interpersonal-menolak-tawaran", title: "Menolak Pekerjaan: Gaji Tidak Masuk Akal / Beda Bidang", pillar: "Interpersonal",
@@ -109,6 +122,8 @@ export const SCENARIOS: Scenario[] = [
       { key: "ketenangan_tegas", label: "Tenang tapi Tegas", rubric: "apakah pembelajar tetap tenang, tidak menandatangani/menyetujui apa pun karena panik atau tekanan, dan berani menunda keputusan untuk berpikir", weight: 0.35 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah kamu berhasil menegosiasikan tawaran yang lebih adil, menerima dengan syarat, atau menolak dengan pintu tetap terbuka.",
+    modelAnswer: "Terima kasih atas tawarannya. Saya sudah menghitung standar gaji untuk posisi ini - sekitar 8 juta. Tawaran 5 juta masih di bawah itu, jadi saya belum bisa menerima. Kalau ada ruang untuk menyesuaikan, saya senang membicarakannya lagi.",
+    tip: "Pelajaran 2 menit: menolak tawaran itu bukan menolak orangnya. Sebutkan angka dan alasannya dengan tenang, lalu buka pintu untuk berunding - jangan menghilang tanpa kabar.",
   },
 ];
 SCENARIOS.push(
@@ -125,6 +140,8 @@ SCENARIOS.push(
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah hubungan ini tetap utuh dengan batas yang jelas, utuh tapi tanpa batas, atau justru retak.",
+    modelAnswer: "Saya paham kamu sedang butuh, dan saya sayang padamu. Tapi bulan ini saya tidak bisa meminjamkan uang - saya sendiri sedang menutup cicilan. Yang bisa saya bantu: saya temani kamu cari solusi lain, misalnya bicara ke atasanmu soal kasbon.",
+    tip: "Pelajaran 2 menit: menolak itu lebih mudah kalau kamu menawarkan bantuan lain. 'Tidak bisa, tapi saya bisa bantu begini' jauh lebih hangat daripada 'tidak' saja.",
   },
   {
     id: "interpersonal-feedback-bawahan", title: "Memberi Feedback Sulit ke Bawahan", pillar: "Interpersonal",
@@ -139,6 +156,8 @@ SCENARIOS.push(
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah Yoga menerima feedback dan sepakat berubah, menerima di mulut saja, atau justru makin defensif.",
+    modelAnswer: "Saya perhatikan laporanmu 2 kali telat minggu ini, dan itu membuat tim menunggu. Saya tahu kamu mampu - laporan bulan lalu bagus. Mulai minggu depan, kirim drafnya ke saya tiap Rabu sore, supaya kita bisa perbaiki bersama sebelum tenggat.",
+    tip: "Pelajaran 2 menit: feedback yang baik menyebut perilaku spesifik (bukan sifat orangnya), dampaknya, lalu satu langkah perbaikan yang jelas. Jangan mulai dari 'kamu itu malas'.",
   },
   {
     id: "interpersonal-bicara-rapat", title: "Berani Bicara di Rapat", pillar: "Interpersonal",
@@ -153,6 +172,8 @@ SCENARIOS.push(
       { key: "usulan", label: "Usulan yang Jelas", rubric: "apakah ditutup dengan usulan langkah berikutnya yang konkret dan bisa diputuskan di rapat itu", weight: 0.35 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah idemu didengar dan dipertimbangkan, didengar tapi lewat begitu saja, atau tidak tersampaikan sama sekali.",
+    modelAnswer: "Izin menambahkan satu hal: dari data minggu lalu, 60 persen keluhan pelanggan soal pengiriman yang telat. Saya usul kita coba kurir cadangan selama 2 minggu dan lihat hasilnya.",
+    tip: "Pelajaran 2 menit: bicara di rapat tidak butuh kalimat panjang - cukup satu data, satu usulan, dan satu ajakan mencoba. Pendek dan konkret lebih didengar daripada panjang dan umum.",
   },
   {
     id: "interpersonal-atasan", title: "Menolak Beban Kerja ke Atasan Defensif", pillar: "Interpersonal",
@@ -167,6 +188,8 @@ SCENARIOS.push(
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah batasmu diterima dengan hubungan tetap baik, diterima tapi hubungan menegang, atau tidak diterima sama sekali.",
+    modelAnswer: "Pak, saya paham tugas ini penting. Saat ini saya mengerjakan 3 proyek yang tenggatnya minggu ini juga. Kalau tugas baru ini masuk, mana yang boleh saya tunda dulu supaya semuanya selesai dengan baik?",
+    tip: "Pelajaran 2 menit: menolak beban kerja bukan berkata 'tidak bisa' - tapi menunjukkan kapasitasmu dengan jujur dan meminta atasan memilih prioritas bersama.",
   },
   {
     id: "interpersonal-rekan", title: "Menghadapi Rekan Pasif-Agresif", pillar: "Interpersonal",
@@ -181,6 +204,8 @@ SCENARIOS.push(
       { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/batas pembelajar disampaikan jelas dan berani, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.33 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah Sinta paham teguranmu dan mau berubah, paham tapi menghindar, atau justru makin menyindir.",
+    modelAnswer: "Saya dengar komentar tadi. Saya tidak tahu apakah itu bercanda, tapi buat saya itu terasa merendahkan. Saya minta kita bicara langsung dan jujur supaya tidak jadi masalah yang lebih besar.",
+    tip: "Pelajaran 2 menit: menghadapi orang pasif-agresif, sebutkan perilaku spesifiknya dan dampaknya - tanpa menyerang balik. Yang kamu lawan adalah perilakunya, bukan orangnya.",
   },
   {
     id: "interpersonal-negosiasi", title: "Negosiasi Gaji dengan HR", pillar: "Interpersonal",
@@ -195,6 +220,8 @@ SCENARIOS.push(
       { key: "ketenangan_tegas", label: "Tenang tapi Tegas", rubric: "apakah pembelajar tetap tenang, tidak menandatangani/menyetujui apa pun karena panik atau tekanan, dan berani menunda keputusan untuk berpikir", weight: 0.35 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah kenaikan gaji disetujui, disetujui sebagian, atau ditolak — dan apakah posisimu menguat atau melemah.",
+    modelAnswer: "Terima kasih. Sebelum saya jawab, saya sudah membandingkan standar gaji posisi ini - 7 sampai 9 juta untuk pengalaman saya. Saya minta 8,5 juta, dan saya siap menunjukkan hasil kerja saya selama 2 tahun terakhir sebagai dasarnya.",
+    tip: "Pelajaran 2 menit: negosiasi gaji yang kuat berdiri di atas data - standar pasar, pengalaman, dan hasil. Jangan mulai dari kebutuhanmu ('saya butuh lebih'), mulai dari nilaimu.",
   },
   {
     id: "krisis-hoax-viral", title: "Hoax / Fitnah Viral di Media Sosial", pillar: "PR / Krisis",
@@ -210,6 +237,8 @@ SCENARIOS.push(
       { key: "empati", label: "Empati ke yang Dirugikan", rubric: "apakah pembelajar mengakui dampak ke pelanggan/publik dan menunjukkan kepedulian nyata sebelum menjelaskan atau membela diri", weight: 0.25 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah klarifikasimu menenangkan publik, belum cukup meyakinkan, atau justru memperkeruh keadaan.",
+    modelAnswer: "Kami sudah membaca tuduhan yang beredar dan kami memahaminya membuat banyak orang khawatir. Faktanya: produk kami sudah lolos uji lab pada 12 Mei, dan hasil ujinya bisa dilihat di tautan ini. Kami akan menjawab pertanyaan apa pun secara terbuka.",
+    tip: "Pelajaran 2 menit: saat hoax viral, jangan menyerang penyebarnya. Akui kekhawatiran publik, sampaikan 1 fakta yang bisa dicek, dan beri tempat bertanya - diam itu lebih buruk daripada klarifikasi yang jujur.",
   },
   {
     id: "krisis-review-bintang1", title: "Review Bintang 1 & Komentar Netizen yang Menyerang", pillar: "PR / Krisis",
@@ -225,6 +254,8 @@ SCENARIOS.push(
       { key: "empati", label: "Empati ke yang Dirugikan", rubric: "apakah pembelajar mengakui dampak ke pelanggan/publik dan menunjukkan kepedulian nyata sebelum menjelaskan atau membela diri", weight: 0.25 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah balasanmu mengubah pembaca jadi percaya lagi, sekadar meredakan, atau justru membuat tokomu terlihat buruk.",
+    modelAnswer: "Terima kasih sudah menyampaikan - kami minta maaf atas pengalaman buruk itu. Kami sudah cek pesanan Anda dan menemukan pengiriman kami telat 2 hari. Kami kirim penggantinya hari ini dan beri potongan 20 persen untuk pesanan berikutnya.",
+    tip: "Pelajaran 2 menit: jawab review buruk di tempat yang sama orang membacanya. Akui masalahnya, sebutkan apa yang sudah diperbaiki, dan jangan meminta mereka menghapus ulasannya.",
   },
   {
     id: "krisis-live", title: "Klarifikasi di Live TikTok/IG Saat Isu Viral", pillar: "PR / Krisis",
@@ -240,6 +271,8 @@ SCENARIOS.push(
       { key: "empati", label: "Empati ke yang Dirugikan", rubric: "apakah pembelajar mengakui dampak ke pelanggan/publik dan menunjukkan kepedulian nyata sebelum menjelaskan atau membela diri", weight: 0.25 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah penonton live tetap percaya dan lanjut menonton/berbelanja, mulai ragu, atau justru meninggalkan live.",
+    modelAnswer: "Terima kasih yang sudah bertanya - saya jawab langsung: isu itu tidak benar. Saya tunjukkan bukti di layar sekarang, dan setelah live ini saya unggah dokumennya supaya bisa dicek siapa saja.",
+    tip: "Pelajaran 2 menit: di live, kecepatan dan ketenangan sama pentingnya. Jangan panik, jangan berbelit - jawab singkat, tunjukkan bukti, dan arahkan ke tempat orang bisa memeriksa sendiri.",
   },
 );
 SCENARIOS.push(
@@ -256,6 +289,8 @@ SCENARIOS.push(
       { key: "ajakan", label: "Ajakan Bertindak yang Jelas", rubric: "apakah ada ajakan langkah berikutnya yang spesifik dan mudah dilakukan pembeli (checkout, DP, jadwal), disampaikan sopan tanpa memaksa", weight: 0.3 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah pembeli ini jadi checkout, masih menimbang, atau pergi ke toko sebelah.",
+    modelAnswer: "Wajar banget membandingkan harga - saya juga begitu. Bedanya, produk kami garansi 1 tahun dan gratis ongkir, jadi total yang Anda bayar sudah termasuk itu. Kalau dihitung, selisihnya 20 ribu untuk garansi dan layanan purna jual.",
+    tip: "Pelajaran 2 menit: jangan pernah merendahkan pesaing. Akui harga mereka, lalu jelaskan apa yang membuat hargamu masuk akal - garansi, layanan, atau kualitas - dengan angka yang bisa dihitung.",
   },
   {
     id: "sales-pitch-investor", title: "Pitch ke Investor dalam 2 Menit", pillar: "Marketing & Sales",
@@ -271,6 +306,8 @@ SCENARIOS.push(
       { key: "ajakan", label: "Ajakan Bertindak yang Jelas", rubric: "apakah pitch ditutup dengan permintaan yang spesifik: jumlah dana/kerja sama dan langkah berikutnya", weight: 0.2 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah investor ini mau lanjut ke pertemuan berikutnya, masih ragu, atau menolak di tempat.",
+    modelAnswer: "Dalam 1 menit: masalahnya, 70 persen UMKM kesulitan mencatat keuangan. Produk kami mencatat otomatis dari foto struk - sudah dipakai 500 UMKM dan 80 persen masih aktif setelah 3 bulan. Kami butuh dana untuk menjangkau 5.000 UMKM tahun ini.",
+    tip: "Pelajaran 2 menit: pitch 2 menit bukan cerita panjang - masalah, solusi, bukti (angka pengguna), dan apa yang kamu minta. Latih sampai bisa diucapkan tanpa membaca.",
   },
   {
     id: "sales-closing-wa", title: "Closing di Chat WA/DM yang PHP", pillar: "Marketing & Sales",
@@ -285,6 +322,8 @@ SCENARIOS.push(
       { key: "ajakan", label: "Ajakan Bertindak yang Jelas", rubric: "apakah ada ajakan langkah berikutnya yang spesifik dan mudah dilakukan pembeli (checkout, DP, jadwal), disampaikan sopan tanpa memaksa", weight: 0.3 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah pembeli ini akhirnya checkout, sepakat dengan langkah berikutnya yang jelas, atau hilang lagi.",
+    modelAnswer: "Halo Kak, terima kasih sudah bertanya kemarin. Saya mau kabari: stok ukuran yang Kakak tanyakan tinggal 2 lagi. Kalau Kakak mau, saya amankan satu sampai malam ini - tidak perlu bayar dulu, cukup konfirmasi saja.",
+    tip: "Pelajaran 2 menit: closing yang baik tidak mendesak - tapi memberi alasan yang jujur untuk memutuskan sekarang (stok, tenggat) dan memudahkan langkah berikutnya (tidak perlu bayar dulu).",
   },
   {
     id: "branding-elevator-pitch", title: "Perkenalan Diri 30 Detik / Elevator Pitch", pillar: "Personal Branding",
@@ -301,6 +340,8 @@ SCENARIOS.push(
       { key: "kredibilitas", label: "Kredibilitas", rubric: "apakah ada bukti nyata (pengalaman, hasil, karya) yang mendukung klaim keahlian — bukan sekadar mengaku ahli", weight: 0.2 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah lawan bicara ingat dan ingin lanjut ngobrol, paham tapi tidak tertarik, atau langsung lupa kamu siapa.",
+    modelAnswer: "Saya Rani, dosen komunikasi. Saya membantu fresh graduate lolos wawancara kerja - 30 dari 40 murid saya lolos di percobaan pertama. Kalau kamu sedang cari kerja, DM saya 'LATIHAN'.",
+    tip: "Pelajaran 2 menit: elevator pitch yang bagus punya 4 bagian - siapa kamu, untuk siapa, bukti 1 angka, dan ajakan. 30 detik cukup kalau tiap kata bekerja.",
   },
   {
     id: "branding-hater", title: "Menjawab Hater di Kolom Komentar", pillar: "Personal Branding",
@@ -317,6 +358,8 @@ SCENARIOS.push(
       { key: "kredibilitas", label: "Kredibilitas", rubric: "apakah ada bukti nyata (pengalaman, hasil, karya) yang mendukung klaim keahlian — bukan sekadar mengaku ahli", weight: 0.2 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah balasanmu membuat pengikutmu makin menghormatimu, sekadar meredakan, atau justru mempermalukan dirimu sendiri.",
+    modelAnswer: "Terima kasih sudah berkomentar. Saya paham video saya tidak cocok untuk semua orang. Buat yang penasaran dengan datanya, saya cantumkan sumbernya di deskripsi - silakan dicek sendiri.",
+    tip: "Pelajaran 2 menit: jangan membalas hater dengan emosi yang sama. Jawab sekali dengan tenang, tunjukkan bukti kalau ada, lalu berhenti - penonton menilai dari caramu merespons, bukan dari siapa yang menang.",
   },
   {
     id: "branding-cancel", title: "Klarifikasi Postingan Lama yang Viral / Cancel Culture", pillar: "Personal Branding",
@@ -333,6 +376,8 @@ SCENARIOS.push(
       { key: "kredibilitas", label: "Kredibilitas", rubric: "apakah ada bukti nyata (pengalaman, hasil, karya) yang mendukung klaim keahlian — bukan sekadar mengaku ahli", weight: 0.2 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah klarifikasimu diterima publik, masih menyisakan keraguan, atau justru memicu gelombang serangan baru.",
+    modelAnswer: "Saya sudah membaca ulang postingan lama saya dan saya sadar kata-kata itu menyakitkan. Saya minta maaf - bukan karena viral, tapi karena itu memang salah. Saya sudah menghapusnya dan saya akan lebih hati-hati ke depan.",
+    tip: "Pelajaran 2 menit: klarifikasi yang dipercaya tidak mencari alasan. Akui, minta maaf tanpa 'tapi', sebutkan apa yang kamu ubah - lalu buktikan dengan perbuatan, bukan dengan kata-kata lagi.",
   },
   {
     id: "branding-endorsement", title: "Negosiasi Endorsement / Rate Card dengan Brand", pillar: "Personal Branding",
@@ -347,6 +392,8 @@ SCENARIOS.push(
       { key: "negosiasi", label: "Negosiasi Tanpa Menutup Pintu", rubric: "apakah tawaran buruk ditolak dengan alternatif yang masuk akal (paket lebih kecil, uji coba berbayar) dan hubungan tetap baik", weight: 0.35 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah kamu dapat kesepakatan berbayar yang adil, kesepakatan kompromi, atau justru menyerahkan hargamu gratis.",
+    modelAnswer: "Terima kasih atas tawarannya. Rate card saya 2 juta untuk 1 video, berdasarkan 50 ribu pengikut dengan rata-rata 5 ribu penonton per video. Kalau ada anggaran berbeda, saya terbuka mendiskusikan paket 3 video.",
+    tip: "Pelajaran 2 menit: negosiasi endorsement berdiri di atas angka - jumlah pengikut, penonton, dan interaksi. Sebutkan angkamu dulu, baru bicarakan harga - jangan biarkan brand menentukan nilaimu.",
   },
   {
     id: "branding-podcast", title: "Wawancara Podcast / Live sebagai Expert", pillar: "Personal Branding",
@@ -363,6 +410,8 @@ SCENARIOS.push(
       { key: "kredibilitas", label: "Kredibilitas", rubric: "apakah ada bukti nyata (pengalaman, hasil, karya) yang mendukung klaim keahlian — bukan sekadar mengaku ahli", weight: 0.2 },
     ],
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah pendengar akan menganggapmu expert yang layak diikuti, sekadar narasumber biasa, atau tidak meyakinkan.",
+    modelAnswer: "Pertanyaan bagus. Dari pengalaman saya mengajar 10 tahun, ada 3 kesalahan yang paling sering saya lihat - pertama, orang menghafal jawaban; kedua, tidak ada contoh nyata; ketiga, tidak ada penutup. Saya ceritakan satu-satu dengan contoh.",
+    tip: "Pelajaran 2 menit: sebagai narasumber, jawab dengan struktur yang bisa diikuti pendengar - sebutkan dulu ada berapa poin, lalu bahas satu-satu dengan contoh. Pendengar mengingat struktur, bukan kalimat panjang.",
   },
 );
 

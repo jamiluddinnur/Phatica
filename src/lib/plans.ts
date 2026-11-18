@@ -1,5 +1,9 @@
 // Paket langganan Phatica.ai — HARGA SAMA di ruang Muse dan standalone.
 // Pembayaran masih SIMULASI: tidak ada transaksi nyata sampai Midtrans live dipasang.
+// Matikan sementara saat tombol langganan disembunyikan — ubah ke true saat tombol langganan dipasang lagi.
+// Saat false: batas kuota Free dan batas pilar paket TIDAK ditegakkan di POST /api/sessions,
+// jadi semua pengguna bisa berlatih semua pilar tanpa paywall.
+export const SUBSCRIPTIONS_ENABLED = false;
 export const PLANS = {
   free: {
     name: "Free", monthly: 0, annualMonthly: 0, annualTotal: 0,

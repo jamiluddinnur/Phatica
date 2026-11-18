@@ -12,18 +12,24 @@ export async function GET() {
     prisma.learnerMemory.findUnique({ where: { userId: user.id } }),
     prisma.subscription.findUnique({ where: { userId: user.id } }),
     prisma.brandProfile.findUnique({ where: { userId: user.id } }),
-    prisma.practiceSession.findMany({ where: { userId: user.id }, orderBy: { updatedAt: "desc" }, take: 10, include: { evaluation: true } }),
+    prisma.practiceSession.findMany({ where: { userId: user.id }, orderBy: { updatedAt: "desc" }, take: 10, include: { evaluation: true, customRoleplay: true, customScenario: true } }),
   ]);
   const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
   const usedThisMonth = await prisma.practiceSession.count({ where: { userId: user.id, createdAt: { gte: startOfMonth } } });
   const plan = (sub?.plan || "free") as keyof typeof PLANS;
-  const progress = sessions.filter((s) => s.evaluation).map((s) => ({ id: s.id, scenarioId: s.scenarioId, overall: (s.evaluation as any)?.overall ?? null, createdAt: s.createdAt }));
+  const labelFor = (s: any) => {
+    if (s.customScenario) return `Skenarioku: ${s.customScenario.title}`;
+    if (s.customRoleplay?.sourceScenarioId) return `Disesuaikan olehmu: ${s.customRoleplay.personaName}`;
+    if (s.customRoleplay) return `Roleplay Bebas: ${s.customRoleplay.personaName}`;
+    return s.scenarioId;
+  };
+  const progress = sessions.filter((s) => s.evaluation).map((s) => ({ id: s.id, scenarioId: labelFor(s), overall: (s.evaluation as any)?.overall ?? null, createdAt: s.createdAt }));
   return NextResponse.json({
     user: { id: user.id, name: user.name, email: user.email },
     plan, subscription: sub,
     memory: memory ? { ...memory, weaknessCounts: JSON.parse(memory.weaknessCounts || "{}"), levels: JSON.parse(memory.levels || "{}") } : null,
     brandProfile: brand, usedThisMonth,
     limitMonthly: PLANS[plan].limitMonthly === Infinity ? null : PLANS[plan].limitMonthly,
-    progress, recentSessions: sessions.map((s) => ({ id: s.id, scenarioId: s.scenarioId, pillar: s.pillar, status: s.status, level: s.level, createdAt: s.createdAt, overall: (s.evaluation as any)?.overall ?? null })),
+    progress, recentSessions: sessions.map((s) => ({ id: s.id, scenarioId: s.scenarioId, customRoleplayId: (s as any).customRoleplayId || null, customScenarioId: (s as any).customScenarioId || null, customized: !!(s as any).customRoleplay?.customized, sourceScenarioId: (s as any).customRoleplay?.sourceScenarioId || null, displayTitle: labelFor(s), pillar: s.pillar, status: s.status, level: s.level, createdAt: s.createdAt, overall: (s.evaluation as any)?.overall ?? null })),
   });
 }

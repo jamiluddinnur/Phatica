@@ -1,7 +1,11 @@
 // Phatica.ai — Prisma schema (PostgreSQL, Neon)
 // Set DATABASE_URL in .env.local / Vercel env vars.
-// TIDAK ada folder prisma/migrations/ — buat tabel dengan `npx prisma db push`.
-// Jangan pakai `prisma migrate deploy` di repo ini.
+// Migrasi: repo ini sekarang memakai Prisma Migrate — buat tabel dengan
+// `prisma migrate deploy` (Vercel Build Command).
+// Database live yang dulu dibuat via `prisma db push` harus di-baseline SEKALI
+// dengan `prisma migrate resolve --applied <timestamp>_init` sebelum
+// migrate deploy pertama (lihat README). Jangan pakai migrate deploy
+// tanpa baseline di database lama — tabel yang sudah ada akan ditolak.
 generator client {
   provider = "prisma-client-js"
 }
@@ -23,10 +27,17 @@ model User {
   memory        LearnerMemory?
   brandProfile  BrandProfile?
   practice      PracticeSession[]
+  customRoleplays CustomRoleplay[]
+  customPillars CustomPillar[]
+  customScenarios CustomScenario[]
+  diagnostics   Diagnostic[]
+  drills        Drill[]
   brandAudits   BrandAudit[]
   contentReviews ContentReview[]
   subscription  Subscription?
   sessions      Session[]
+  llmUsage      LlmUsage[]
+  passwordResetTokens PasswordResetToken[]
   createdAt     DateTime  @default(now())
 }
 
@@ -71,15 +82,122 @@ model PracticeSession {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scenarioId  String
+  scenarioId  String?  // null untuk Roleplay Bebas (skenario buatan pengguna)
+  customRoleplayId String?
+  customRoleplay CustomRoleplay? @relation(fields: [customRoleplayId], references: [id], onDelete: Cascade)
+  customScenarioId String?
+  customScenario CustomScenario? @relation(fields: [customScenarioId], references: [id], onDelete: SetNull)
+  openingVariant Int @default(0) // skenario tetap: 0 = kalimat pembuka asli, 1..n = varian pembuka; Roleplay Bebas: 0
   pillar      String
   level       Int      @default(3)
   status      String   @default("active") // active | finished
+  register    String   @default("santai") // formal | santai — pilihan pengguna sebelum sesi
+  voiceMetrics String  @default("") @db.Text // JSON [{turn, durationSec, words, paceWpm, fillers, used}] — metrik dari transkripsi browser, bukan analisis audio
   messages    SessionMessage[]
   adaptations AdaptationEvent[]
   evaluation  Evaluation?
+  drills      Drill[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// --- Tes Awal + Jalur Belajar ---
+// Diagnostic: hasil Tes Awal (3 situasi singkat). scores + path disimpan JSON.
+// Satu baris per Tes Awal; Tes Ulang membuat baris baru (yang terbaru yang dipakai).
+model Diagnostic {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scores    String   // JSON [{key: "bukti"|"struktur"|"empati"|"ketegasan", label, score}]
+  weakest   String   // JSON string[] — 2 dimensi terlemah
+  path      String   // JSON [{scenarioId, title, dimension, done}] — jalur belajar berurutan
+  createdAt DateTime @default(now())
+}
+
+// --- Latihan Lanjutan (Drill 2 menit) ---
+// Dibuat otomatis dari setiap evaluasi. dueAt = besok; pengguna mengerjakan
+// di kartu "Latihan Hari Ini" di Beranda (in-app saja — belum ada pengingat email).
+model Drill {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  text      String   @db.Text // isi latihan 2 menit dari evaluasi
+  blindSpot String   @default("") @db.Text
+  status    String   @default("pending") // pending | done
+  attempt   String   @default("") @db.Text // jawaban latihan pengguna
+  dueAt     DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- Skenarioku / Pilarku — perpustakaan latihan milik pengguna ---
+// Pilar buatan pengguna (maks 5 per akun) dan skenario buatan pengguna yang
+// tersimpan (maks 20 per akun). Skenario menunjuk pilar lewat pillarKey:
+// slug pilar bawaan ("interpersonal" | "pr-krisis" | "marketing-sales" |
+// "personal-branding") atau "custom:<pillarId>".
+// Skenario privat per akun; menghapus pilar TIDAK menghapus skenarionya
+// (skenario dipindah ke pilar bawaan pilihan pengguna di API).
+// Menghapus skenario TIDAK menghapus riwayat sesi — PracticeSession.
+// customScenarioId di-set null (onDelete SetNull).
+model CustomPillar {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String   // 2–40 karakter, unik per pengguna
+  description String   @default("") // maks 200 karakter, opsional
+  color       String   // hex dari palet tetap (lihat src/lib/custom-library.ts)
+  icon        String   // nama dari daftar tetap (mis. "chat", "target")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+model CustomScenario {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pillarKey            String   // slug pilar bawaan atau "custom:<pillarId>"
+  title                String   // 3–80 karakter
+  personaName          String
+  personaRole          String
+  trait                String   // Skeptis | Marah | Ragu-ragu | Dingin | Menekan
+  situation            String   @db.Text // min ~20 karakter
+  goal                 String   @db.Text // wajib
+  level                Int      @default(3) // 1–5
+  openingLine          String   @default("") @db.Text // kosong = dibuat otomatis dari situasi
+  rubric               String   @db.Text // JSON [{key,label,rubric,weight}] — 2–4 dimensi
+  sourceScenarioId     String?  // id skenario bawaan asal, bila dari duplikasi
+  sourceCustomRoleplayId String? // id CustomRoleplay asal, bila dari "Simpan sebagai skenario"
+  playCount            Int      @default(0)
+  sessions             PracticeSession[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// --- Roleplay Bebas / Skenario Buatanmu ---
+// Skenario yang dibuat pengguna sendiri: persona + situasi + tujuan.
+// personaCard dan rubric disimpan sebagai JSON hasil build server
+// (lihat src/lib/custom-roleplay.ts). Dihapus bersama akun (Cascade)
+// dan bersama riwayat lewat DELETE /api/history.
+model CustomRoleplay {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personaName  String
+  personaRole  String
+  trait        String   // Skeptis | Marah | Ragu-ragu | Dingin | Menekan
+  situation    String   @db.Text
+  goal         String   @db.Text
+  level        Int      @default(3)
+  personaCard  String   @db.Text // JSON {personaName, personaRole, trait, personaGoal, hiddenAgenda, pressureStyle, opening}
+  rubric       String   @db.Text // JSON [{key,label,rubric,weight}] — dibuat dari tujuan pengguna
+  sourceScenarioId String? // id skenario tetap asal, bila ini hasil "Sesuaikan & Mainkan"
+  customized   Boolean  @default(false) // true = turunan skenario tetap yang diubah pengguna
+  sessions     PracticeSession[]
+  createdAt    DateTime @default(now())
 }
 
 model SessionMessage {
@@ -116,6 +234,10 @@ model Evaluation {
   comparison   String   @default("") @db.Text
   patterns     String   @default("") // pola berbahaya yang terdeteksi, dipisah koma
   recurring    String   @default("") // kelemahan berulang dari memori
+  voiceSummary String   @default("") @db.Text // ringkasan suara (hanya bila ada jawaban suara): kecepatan, filler, catatan
+  sharpened    String   @default("") @db.Text // JSON {original, sharpened, why} — "Kalimatmu vs Versi yang Lebih Tajam"
+  drillStatus  String   @default("") // status latihan 2 menit sebelumnya saat evaluasi dibuat: "selesai" | "belum" | "tidak ada"
+  register     String   @default("santai") // formal | santai — register yang dipakai di sesi ini
   toolTrace    String   @default("[]") @db.Text // JSON [{tool,input,output,durationMs}]
   createdAt    DateTime @default(now())
 }
@@ -155,6 +277,46 @@ model ContentReview {
   hooks     String   // JSON string[] — tepat 3 hook rewrite
   toolTrace String   @default("[]") @db.Text
   createdAt DateTime @default(now())
+}
+
+// --- Rate limiting (DB-backed, tahan di Vercel serverless) ---
+// Satu baris per kunci (mis. "login:email@x:1.2.3.4") per jendela waktu.
+// Jendela dihitung dari windowStart; baris kedaluwarsa direset, bukan dihapus
+// paksa — tidak ada cron pembersih, baris lama ditimpa saat jendela baru.
+// Tidak ada relasi ke User: kunci sudah mengandung identitas yang cukup.
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// --- Batas pemakaian LLM harian (penghemat biaya OpenAI) ---
+// Satu baris per pengguna per hari (yyyy-mm-dd). Dihitung HANYA saat
+// panggilan LLM benar-benar berhasil; giliran rule-based tidak dihitung.
+model LlmUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String   // yyyy-mm-dd (WIB)
+  turns     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+}
+
+// --- Token reset password (sekali pakai, 1 jam) ---
+// Token mentah HANYA dikirim lewat email (bila layanan email dipasang) —
+// tidak pernah dikembalikan di respons API atau ditulis ke log.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 // --- Langganan SaaS (harga SAMA dengan ruang Muse) ---

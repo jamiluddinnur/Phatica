@@ -3,12 +3,28 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { ensureUserRows } from "@/lib/ensure";
 import { createSession } from "@/lib/auth";
+import {
+  REGISTER_MAX_PER_HOUR,
+  REGISTER_WINDOW_MS,
+  checkRateLimit,
+  getClientIp,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 
 // POST /api/auth/register — daftar dengan email + password.
 // Password minimal 8 karakter, disimpan HANYA sebagai hash scrypt.
 // Email duplikat ditolak (409). Tidak ada akun demo, tidak ada auto-login:
 // setelah daftar, sesi langsung dibuat (auto-login) — frontend cukup memuat ulang data.
+// Perlindungan: maks 5 pendaftaran per IP per jam → 429.
 export async function POST(req: Request) {
+  const limited = await checkRateLimit(
+    `register:${getClientIp(req)}`,
+    REGISTER_MAX_PER_HOUR,
+    REGISTER_WINDOW_MS
+  );
+  if (!limited.allowed) {
+    return rateLimitedResponse("Terlalu banyak pendaftaran dari alamat ini, coba lagi 1 jam lagi.", limited.retryAfterSec);
+  }
   const { name, email, password } = await req.json().catch(() => ({}));
   const cleanName = String(name || "").trim();
   const cleanEmail = String(email || "").trim().toLowerCase();

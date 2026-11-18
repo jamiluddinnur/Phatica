@@ -18,6 +18,8 @@ export async function GET(req: Request) {
       messages: { orderBy: { createdAt: "asc" } },
       adaptations: { orderBy: { createdAt: "asc" } },
       evaluation: true,
+      customRoleplay: true,
+      customScenario: true,
     },
   });
   if (!s) return NextResponse.json({ error: "Sesi tidak ditemukan." }, { status: 404 });
