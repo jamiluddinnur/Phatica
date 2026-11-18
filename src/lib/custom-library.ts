@@ -51,6 +51,7 @@ export const BUILTIN_PILLARS = [
   { key: "pr-krisis", name: "PR / Krisis" },
   { key: "marketing-sales", name: "Marketing & Sales" },
   { key: "personal-branding", name: "Personal Branding" },
+  { key: "public-speaking", name: "Public Speaking" },
 ] as const;
 export type BuiltinPillarKey = (typeof BUILTIN_PILLARS)[number]["key"];
 

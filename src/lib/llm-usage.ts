@@ -1,9 +1,11 @@
-// Batas pemakaian LLM harian — penghemat biaya OpenAI.
+// Batas pemakaian LLM harian — penghemat biaya LLM (berlaku sama untuk
+// OpenAI maupun Gemini: SATU batas, satu hitungan, bukan satu batas per penyedia).
 // Batas: 30 giliran LLM per pengguna per hari (WIB). Bila tercapai, sesi
 // lanjut dengan mesin rule-based (tanpa batas) dan UI menampilkan pesan jujur.
 // Giliran rule-based TIDAK dihitung. Satu giliran dihitung HANYA bila
 // panggilan LLM benar-benar berhasil (increment setelah respons sukses).
 import { prisma } from "./prisma";
+import { hasAnyLlmKey } from "./llm-provider";
 
 export const LLM_DAILY_TURN_LIMIT = 30;
 export const LLM_LIMIT_MESSAGE =
@@ -52,22 +54,24 @@ export async function incrementLlmTurn(userId: string): Promise<void> {
   }
 }
 
-export type LlmAttemptResult = { reply: string | null; capped: boolean };
+export type LlmAttemptResult<T = string> = { reply: T | null; capped: boolean };
 
 /**
  * Jalankan satu panggilan LLM dengan penjaga batas harian.
- * - Tanpa OPENAI_API_KEY: kembalikan { reply: null, capped: false } (pemanggil
- *   lalu memakai rule-based seperti biasa).
+ * - Tanpa kunci LLM apa pun (OpenAI maupun Gemini): kembalikan
+ *   { reply: null, capped: false } (pemanggil lalu memakai rule-based
+ *   seperti biasa).
  * - Batas tercapai: jangan panggil LLM sama sekali, capped: true.
- * - LLM sukses: hitung 1 giliran, kembalikan balasannya.
+ * - LLM sukses: hitung 1 giliran (penyedia apa pun — batasnya satu),
+ *   kembalikan balasannya.
  * - LLM gagal/null: capped: false, reply null (pemanggil memakai rule-based,
  *   tanpa menghitung giliran).
  */
-export async function tryLlmReply(
+export async function tryLlmReply<T>(
   userId: string,
-  call: () => Promise<string | null>
-): Promise<LlmAttemptResult> {
-  if (!process.env.OPENAI_API_KEY) return { reply: null, capped: false };
+  call: () => Promise<T | null>
+): Promise<LlmAttemptResult<T>> {
+  if (!hasAnyLlmKey()) return { reply: null, capped: false };
   if (await isLlmCapReached(userId)) return { reply: null, capped: true };
   const reply = await call();
   if (reply) await incrementLlmTurn(userId);

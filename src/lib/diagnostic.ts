@@ -28,9 +28,12 @@ export const DIAGNOSTIC_PROMPTS = [
 export type PathItem = { scenarioId: string; title: string; dimension: string; done: boolean };
 
 // Kunci rubrik yang melatih tiap dimensi dasar.
+// Termasuk kunci penyampaian (hook, nada) dari Pilar V Public Speaking —
+// skenario Public Speaking ikut jadi kandidat jalur belajar bila dimensi
+// terlemahnya cocok dengan rubriknya.
 const DIMENSION_KEYS: Record<string, string[]> = {
   bukti: ["bukti", "dasar_angka", "bukti_bisnis", "kredibilitas", "nilai_audiens"],
-  struktur: ["struktur", "pembuka", "masalah_solusi", "posisi", "kejelasan"],
+  struktur: ["struktur", "pembuka", "masalah_solusi", "posisi", "kejelasan", "hook", "nada"],
   empati: ["empati", "mendengarkan", "validasi"],
   ketegasan: ["ketegasan", "kejelasan_maksud", "ketenangan_tegas", "percaya_diri", "bertahan"],
 };

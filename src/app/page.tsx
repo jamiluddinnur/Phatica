@@ -7,7 +7,15 @@ type User = { id: string; name: string; email: string };
 type Scenario = { id: string; title: string; pillar: string; personaName: string; personaRole: string; context: string; opening: string; goal: string; baseDifficulty: number; durationLabel: string; evaluatorMode: string; fourthLabel: string; rubric: Array<{ key: string; label: string; rubric: string; weight: number }>; verdictHint: string; modelAnswer: string; tip: string };
 type Dash = { user: User; plan: string; subscription: any; memory: any; brandProfile: any; usedThisMonth: number; limitMonthly: number | null; progress: Array<{ id: string; scenarioId: string; overall: number | null; createdAt: string }>; recentSessions: Array<{ id: string; scenarioId: string | null; customRoleplayId: string | null; customScenarioId: string | null; customized: boolean; sourceScenarioId: string | null; displayTitle: string; pillar: string; status: string; level: number; createdAt: string; overall: number | null }> };
 
-const PILLARS = ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding"];
+const PILLARS = ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding", "Public Speaking"];
+
+// Nama pilar bawaan → slug pilar (dipakai wizard Skenarioku + daftar Pilar Bawaan).
+const pillarKey = (p: string) =>
+  p === "Interpersonal" ? "interpersonal"
+  : p === "PR / Krisis" ? "pr-krisis"
+  : p === "Marketing & Sales" ? "marketing-sales"
+  : p === "Public Speaking" ? "public-speaking"
+  : "personal-branding";
 
 async function api(path: string, method = "GET", body?: unknown) {
   const res = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -448,7 +456,7 @@ export default function Home() {
             <p className="small" style={{ marginTop: 12 }}>Mulai Latihan Gratis. Daftar dengan email dan passwordmu — password hanya disimpan sebagai hash, tidak pernah sebagai teks biasa. Data latihan hanya bisa dilihat oleh akunmu sendiri.</p>
           </section>
           <div className="grid g3">
-            <div className="card"><b>Latih.</b><p className="small">Mulai dengan Tes Awal — 3 situasi singkat yang menunjukkan kelemahanmu — lalu ikuti Jalur Belajarmu: 3 skenario berurutan. Atau pilih 1 dari 24 skenario — wawancara kerja, hoax viral, pembeli sinis, negosiasi endorsement — dan hadapi persona AI yang menekan. Atau buat skenariomu sendiri di Roleplay Bebas, duplikasi skenario bawaan dengan &ldquo;Duplikasi &amp; Sesuaikan&rdquo;, dan simpan semuanya di Skenarioku — perpustakaan latihanmu sendiri, dengan pilar buatanmu (Pilarku).</p></div>
+            <div className="card"><b>Latih.</b><p className="small">Mulai dengan Tes Awal — 3 situasi singkat yang menunjukkan kelemahanmu — lalu ikuti Jalur Belajarmu: 3 skenario berurutan. Atau pilih 1 dari 29 skenario — wawancara kerja, hoax viral, pembeli sinis, negosiasi endorsement, pidato pembukaan — dan hadapi persona AI yang menekan. Atau buat skenariomu sendiri di Roleplay Bebas, duplikasi skenario bawaan dengan &ldquo;Duplikasi &amp; Sesuaikan&rdquo;, dan simpan semuanya di Skenarioku — perpustakaan latihanmu sendiri, dengan pilar buatanmu (Pilarku).</p></div>
             <div className="card"><b>Dinilai.</b><p className="small">Evaluation Agent menilai dengan rubrik per skenario, tepat 3 kutipan bukti, 1 blind spot, dan 1 kalimat alternatif.</p></div>
             <div className="card"><b>Naik Level.</b><p className="small">Adaptation Engine level 1–5 naik saat kamu kuat, turun saat kamu kewalahan. Memorimu tersimpan dan dipakai di sesi berikutnya.</p></div>
           </div>
@@ -457,21 +465,22 @@ export default function Home() {
             <p className="small">Beranda menampilkan progres dan memori — dari data latihanmu sendiri. Belum ada sesi? Beranda akan jujur menampilkan keadaan kosong sampai kamu menyelesaikan satu sesi latihan.</p>
             <div className="grid g3">
               <div><div className="small">Skor rata-rata</div><div className="stat">—</div><p className="small">0 sesi selesai</p></div>
-              <div><div className="small">Simulasi bulan ini</div><div className="stat">0</div><p className="small">Semua 24 skenario bisa dicoba.</p></div>
+              <div><div className="small">Simulasi bulan ini</div><div className="stat">0</div><p className="small">Semua 29 skenario bisa dicoba.</p></div>
               <div><div className="small">Sesi terakhir</div><p>Belum ada sesi. Mulai dari Pilih Skenario setelah login.</p></div>
             </div>
           </div>
-          <div style={{ marginTop: 24 }}><h2>4 pilar, 24 skenario</h2></div>
+          <div style={{ marginTop: 24 }}><h2>5 pilar, 29 skenario</h2></div>
           <div className="grid g4" style={{ marginTop: 12 }}>
             <div className="card"><b>Interpersonal</b><div className="stat">13</div><p className="small">Wawancara kerja &amp; beasiswa, orang tua, minta maaf, PHK, teguran atasan.</p></div>
             <div className="card"><b>PR / Krisis</b><div className="stat">3</div><p className="small">Hoax viral, review bintang 1, klarifikasi di live TikTok/IG.</p></div>
             <div className="card"><b>Marketing &amp; Sales</b><div className="stat">3</div><p className="small">Pembeli “di Shopee lebih murah”, pitch investor 2 menit, closing WA/DM.</p></div>
             <div className="card"><b>Personal Branding</b><div className="stat">5</div><p className="small">Elevator pitch, hater, cancel culture, endorsement, podcast expert.</p></div>
+            <div className="card"><b>Public Speaking</b><div className="stat">5</div><p className="small">Pidato pembukaan, presentasi di depan atasan, MC formal, kuliah umum, debat di forum.</p></div>
           </div>
           <div className="card" style={{ marginTop: 24 }}>
             <h2 style={{ marginTop: 0 }}>Pertanyaan yang sering ditanya</h2>
             <p><b>Apakah Phatica itu video belajar?</b><br /><span className="small">Bukan. Phatica adalah simulasi roleplay: kamu berlatih menjawab lawan bicara AI, lalu dinilai.</span></p>
-            <p><b>Berapa skenario yang bisa saya latih?</b><br /><span className="small">Semua 24 skenario di 4 pilar bisa dicoba — Interpersonal, PR/Krisis, Marketing &amp; Sales, dan Personal Branding — lengkap dengan Brand Audit dan Content Coach.</span></p>
+            <p><b>Berapa skenario yang bisa saya latih?</b><br /><span className="small">Semua 29 skenario di 5 pilar bisa dicoba — Interpersonal, PR/Krisis, Marketing &amp; Sales, Personal Branding, dan Public Speaking — lengkap dengan Brand Audit dan Content Coach.</span></p>
             <p><b>Apakah data saya aman?</b><br /><span className="small">Ya. Kamu masuk dengan email dan password — password hanya disimpan sebagai hash, tidak pernah sebagai teks biasa — dan data latihan hanya bisa dilihat oleh akunmu sendiri.</span></p>
           </div>
           <section className="closing">
@@ -517,7 +526,7 @@ export default function Home() {
               <p className="small">Komunikasi Strategis, Dilatih dengan Kecerdasan Buatan. Progres dan memori — dari data latihanmu sendiri, bukan data contoh.</p>
               <div style={{ marginTop: 12 }}><button className="btn-ghost" onClick={() => { loadReport(); setTab("laporan"); }}>Unduh / Cetak Laporan Perkembangan</button></div>
               <div className="grid g3">
-                <div><b>Latih.</b><p className="small">24 skenario di 4 pilar.</p></div>
+                <div><b>Latih.</b><p className="small">29 skenario di 5 pilar.</p></div>
                 <div><b>Dinilai.</b><p className="small">Laporan 5 bagian + tepat 3 kutipan bukti.</p></div>
                 <div><b>Naik Level.</b><p className="small">Adaptasi level 1–5 dengan alasan tercatat.</p></div>
               </div>
@@ -665,7 +674,7 @@ export default function Home() {
                   <p className="small">Skenario di pilar ini <b>tidak dihapus</b> — semuanya dipindah ke pilar bawaan yang kamu pilih di bawah.</p>
                   <label className="small">Pindah skenario ke pilar:</label>
                   <select value={pillarDeleteFallback} onChange={(e) => setPillarDeleteFallback(e.target.value)}>
-                    {PILLARS.map((p) => (<option key={p} value={p === "Interpersonal" ? "interpersonal" : p === "PR / Krisis" ? "pr-krisis" : p === "Marketing & Sales" ? "marketing-sales" : "personal-branding"}>{p}</option>))}
+                    {PILLARS.map((p) => (<option key={p} value={pillarKey(p)}>{p}</option>))}
                   </select>
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                     <button className="btn-danger" disabled={busy} onClick={deletePillar}>Ya, Hapus Pilar</button>
@@ -699,7 +708,7 @@ export default function Home() {
                     </select>
                     <label className="small">Simpan di pilar</label>
                     <select value={wiz.pillarKey} onChange={(e) => setWiz({ ...wiz, pillarKey: e.target.value })}>
-                      {PILLARS.map((p) => (<option key={p} value={p === "Interpersonal" ? "interpersonal" : p === "PR / Krisis" ? "pr-krisis" : p === "Marketing & Sales" ? "marketing-sales" : "personal-branding"}>{p} (bawaan)</option>))}
+                      {PILLARS.map((p) => (<option key={p} value={pillarKey(p)}>{p} (bawaan)</option>))}
                       {myPillars.map((p: any) => (<option key={p.id} value={`custom:${p.id}`}>{p.name} (Pilarku)</option>))}
                     </select>
                   </div>
@@ -776,9 +785,9 @@ export default function Home() {
 
             <div className="card">
               <h3 style={{ marginTop: 0 }}>Pilar Bawaan</h3>
-              <p className="small">4 pilar ini bawaan Phatica — tidak bisa diubah atau dihapus. Skenario buatanmu juga bisa disimpan di sini.</p>
+              <p className="small">5 pilar ini bawaan Phatica — tidak bisa diubah atau dihapus. Skenario buatanmu juga bisa disimpan di sini.</p>
               {PILLARS.map((p) => {
-                const key = p === "Interpersonal" ? "interpersonal" : p === "PR / Krisis" ? "pr-krisis" : p === "Marketing & Sales" ? "marketing-sales" : "personal-branding";
+                const key = pillarKey(p);
                 const items = library.filter((s) => s.pillarKey === key);
                 return (
                   <div key={key} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
@@ -837,7 +846,7 @@ export default function Home() {
                   <p className="small" style={{ marginBottom: 0 }}>Form di bawah sudah terisi dari skenario aslinya. Ubah apa pun — nama, situasi (mis. ganti perusahaan/posisi yang dilamar), tujuan, level, sifat — lalu buat versimu. <button className="btn-ghost" type="button" onClick={() => { setCustomSource(null); setCustomForm({ personaName: "", personaRole: "", trait: "Skeptis", situation: "", goal: "", level: 3 }); setCustomPreview(null); }}>Batalkan penyesuaian, buat dari nol</button></p>
                 </div>
               )}
-              <p className="small">Tidak ada di 24 skenario? Buat sendiri: tulis siapa lawan bicaramu, situasinya, dan apa yang mau kamu capai. Phatica akan membuat kartu persona dan rubrik penilaiannya — kamu lihat dulu apa yang akan dinilai, baru mulai latihan. Maksimal 12 giliran bicara per sesi.</p>
+              <p className="small">Tidak ada di 29 skenario? Buat sendiri: tulis siapa lawan bicaramu, situasinya, dan apa yang mau kamu capai. Phatica akan membuat kartu persona dan rubrik penilaiannya — kamu lihat dulu apa yang akan dinilai, baru mulai latihan. Maksimal 12 giliran bicara per sesi.</p>
               <p className="small">Ceritamu tersimpan di akunmu dan bisa dihapus lewat Hapus Semua Riwayat &amp; Memori.</p>
               <label className="small">Coba dulu dengan satu kalimat — ceritakan situasimu dengan bahasamu sendiri…</label>
               <textarea rows={2} value={oneSentence} onChange={(e) => setOneSentence(e.target.value)} placeholder="Contoh: Besok saya mau minta naik gaji ke atasan, tapi saya gugup karena tahun lalu ditolak." />
@@ -1012,7 +1021,7 @@ export default function Home() {
                   <p className="small">{activeSession?.scenario?.goal || ""}</p>
                   <p className="small">Mode evaluator: {activeSession?.scenario?.evaluatorMode || ""} · Rubrik: {(activeSession?.scenario?.rubric || []).map((r: any) => r.label).join(", ")}</p>
                   {lastEngine && (
-                    <p className="small">Mesin yang menjawab barusan: <b>{lastEngine === "openai" ? "OpenAI (GPT-4o-mini)" : "Rule-based persona (tanpa kunci LLM)"}</b> — tanpa kunci, persona menjawab dari bank keberatan per sifat; dengan kunci, jawabannya jauh lebih hidup.</p>
+                    <p className="small">Mesin yang menjawab barusan: <b>{lastEngine === "openai" ? "OpenAI (GPT-4o-mini)" : lastEngine === "gemini" ? "Gemini" : "Rule-based persona (tanpa kunci LLM)"}</b> — tanpa kunci, persona menjawab dari bank keberatan per sifat; dengan kunci, jawabannya jauh lebih hidup.</p>
                   )}
                   {llmNotice && (
                     <p className="small" style={{ background: "#fef3c7", padding: "8px 10px", borderRadius: 8 }}>{llmNotice}</p>

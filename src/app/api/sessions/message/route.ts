@@ -1,7 +1,8 @@
 // POST /api/sessions/message?id=<sessionId> — kirim jawaban, terima balasan persona + adaptasi level.
 // Berfungsi untuk skenario tetap maupun Roleplay Bebas (customRoleplayId).
-// Balasan selalu menyertakan engine yang dipakai ("openai" atau "rule-based"
-// / "rule-based (persona)") supaya UI menampilkannya dengan jujur.
+// Balasan selalu menyertakan engine yang dipakai ("openai", "gemini", atau
+// "rule-based (persona)") supaya UI menampilkannya dengan jujur.
+// Engine adalah penyedia yang BENAR-BENAR menjawab (lihat src/lib/llm-provider.ts).
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -63,8 +64,8 @@ export async function POST(req: Request) {
       customRoleplayReplyLLM(card, session.level, history, memoryNote, custom.situation, custom.goal, userTurns, register)
     );
     const llm = llmAttempt.reply;
-    const reply = llm || customRoleplayReply(card, session.level, history, custom.situation, userTurns, register);
-    const engine = llm ? "openai" : "rule-based (persona)";
+    const reply = llm ? llm.text : customRoleplayReply(card, session.level, history, custom.situation, userTurns, register);
+    const engine = llm ? llm.engine : "rule-based (persona)";
     const llmLimitReached = llmAttempt.capped;
     const llmNotice = llmLimitReached ? LLM_LIMIT_MESSAGE : null;
     // Adaptasi level memakai mesin yang sama; personaName dari kartu.
@@ -95,8 +96,8 @@ export async function POST(req: Request) {
     customRoleplayReplyLLM(card, session.level, history, memoryNote, scenario.context, scenario.goal, userTurns, register)
   );
   const llm = llmAttempt.reply;
-  const reply = llm || customRoleplayReply(card, session.level, history, scenario.context, userTurns, register);
-  const engine = llm ? "openai" : "rule-based (persona)";
+  const reply = llm ? llm.text : customRoleplayReply(card, session.level, history, scenario.context, userTurns, register);
+  const engine = llm ? llm.engine : "rule-based (persona)";
   const llmLimitReached = llmAttempt.capped;
   const llmNotice = llmLimitReached ? LLM_LIMIT_MESSAGE : null;
   const adapt = adaptLevel(scenario, session.level, userTexts);

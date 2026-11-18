@@ -1,9 +1,13 @@
 // Mesin AI Phatica — rule-based sebagai default (tanpa kunci LLM).
-// Bila OPENAI_API_KEY dipasang, Roleplay Agent memakai OpenAI; semua
-// penilaian (scoring) TETAP memakai fungsi terpisah di bawah ini —
-// skor tidak pernah ditebak dari satu prompt. Tidak ada angka yang dikarang:
-// setiap skor dihitung dari metrik transkrip yang terukur.
+// Bila kunci LLM dipasang, Roleplay Agent memakai LLM (OpenAI atau Gemini,
+// lihat src/lib/llm-provider.ts); semua penilaian (scoring) TETAP memakai
+// fungsi terpisah di bawah ini — skor tidak pernah ditebak dari satu prompt.
+// Tidak ada angka yang dikarang: setiap skor dihitung dari metrik transkrip
+// yang terukur.
 import type { Scenario } from "./scenarios";
+import { callLlm, type LlmEngine } from "./llm-provider";
+
+export type LlmReply = { text: string; engine: LlmEngine };
 
 export type Msg = { role: string; content: string };
 export type ToolTrace = { tool: string; input: unknown; output: unknown; durationMs: number };
@@ -158,28 +162,11 @@ export function customRoleplayReply(card: PersonaCard, level: number, history: M
   return applyRegister(`${name}: ${fill(pick)}${hard}`, register);
 }
 
-export async function customRoleplayReplyLLM(card: PersonaCard, level: number, history: Msg[], memoryNote: string, situation: string, userGoal: string, userTurns: number, register: Register = "santai"): Promise<string | null> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return null;
-  try {
-    const stage = customStage(userTurns);
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: `Kamu adalah ${card.personaName}, ${card.personaRole}. Sifatmu: ${card.trait}. Tujuanmu dalam percakapan ini: ${card.personaGoal}. Agenda tersembunyimu (jangan diucapkan langsung): ${card.hiddenAgenda}. Gaya menekanmu: ${card.pressureStyle}. Situasi: ${situation}. Tujuan lawan bicaramu: ${userGoal}. Tahap percakapan sekarang: ${stage} (giliran pengguna ke-${userTurns} dari maks 12). Level tekanan ${level}/5 (1 lunak, 5 sangat menekan). ATURAN KETAT: tetap dalam karakter, jangan keluar dari peran, jangan memberi nasihat atau tips latihan, jangan memuji jawaban lawan bicara dengan mudah, jangan setuju begitu saja, jangan mengarang data atau nama orang/institusi nyata. Register: ${registerInstruction(register)} Jawab maksimal 2–3 kalimat pendek. Catatan memori pembelajar: ${memoryNote || "-"}` },
-          ...history.slice(-10).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
-        ],
-        temperature: 0.85, max_tokens: 220,
-      }),
-    });
-    if (!res.ok) return null;
-    const j = await res.json();
-    const text = j.choices?.[0]?.message?.content?.trim() || null;
-    return text ? `${card.personaName}: ${text}` : null;
-  } catch { return null; }
+export async function customRoleplayReplyLLM(card: PersonaCard, level: number, history: Msg[], memoryNote: string, situation: string, userGoal: string, userTurns: number, register: Register = "santai"): Promise<LlmReply | null> {
+  const stage = customStage(userTurns);
+  const systemPrompt = `Kamu adalah ${card.personaName}, ${card.personaRole}. Sifatmu: ${card.trait}. Tujuanmu dalam percakapan ini: ${card.personaGoal}. Agenda tersembunyimu (jangan diucapkan langsung): ${card.hiddenAgenda}. Gaya menekanmu: ${card.pressureStyle}. Situasi: ${situation}. Tujuan lawan bicaramu: ${userGoal}. Tahap percakapan sekarang: ${stage} (giliran pengguna ke-${userTurns} dari maks 12). Level tekanan ${level}/5 (1 lunak, 5 sangat menekan). ATURAN KETAT: tetap dalam karakter, jangan keluar dari peran, jangan memberi nasihat atau tips latihan, jangan memuji jawaban lawan bicara dengan mudah, jangan setuju begitu saja, jangan mengarang data atau nama orang/institusi nyata. Register: ${registerInstruction(register)} Jawab maksimal 2–3 kalimat pendek. Catatan memori pembelajar: ${memoryNote || "-"}`;
+  const out = await callLlm(systemPrompt, history, 0.85);
+  return out ? { text: `${card.personaName}: ${out.text}`, engine: out.engine } : null;
 }
 
 // ---------- Roleplay Agent (rule-based) ----------
@@ -208,26 +195,9 @@ export function roleplayReply(scenario: Scenario, level: number, history: Msg[],
   return hard ? `${name}: ${pick} Saya tidak akan mudah puas — tunjukkan saya kenapa jawabanmu layak dipercaya.` : `${name}: ${pick}`;
 }
 
-export async function roleplayReplyLLM(scenario: Scenario, level: number, history: Msg[], memoryNote: string, register: Register = "santai"): Promise<string | null> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return null;
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: `Kamu adalah ${scenario.personaName}, ${scenario.personaRole}. Skenario: ${scenario.context}. Tujuan lawan bicaramu: ${scenario.goal}. Level tekanan ${level}/5 (1 lunak, 5 sangat menekan). Register: ${registerInstruction(register)} Tetap dalam karakter, jangan keluar dari peran, jangan memberi nasihat, jangan mengarang data. Catatan memori pembelajar: ${memoryNote || "-"}` },
-          ...history.slice(-10).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
-        ],
-        temperature: 0.8, max_tokens: 220,
-      }),
-    });
-    if (!res.ok) return null;
-    const j = await res.json();
-    return j.choices?.[0]?.message?.content?.trim() || null;
-  } catch { return null; }
+export async function roleplayReplyLLM(scenario: Scenario, level: number, history: Msg[], memoryNote: string, register: Register = "santai"): Promise<LlmReply | null> {
+  const systemPrompt = `Kamu adalah ${scenario.personaName}, ${scenario.personaRole}. Skenario: ${scenario.context}. Tujuan lawan bicaramu: ${scenario.goal}. Level tekanan ${level}/5 (1 lunak, 5 sangat menekan). Register: ${registerInstruction(register)} Tetap dalam karakter, jangan keluar dari peran, jangan memberi nasihat, jangan mengarang data. Catatan memori pembelajar: ${memoryNote || "-"}`;
+  return callLlm(systemPrompt, history, 0.8);
 }
 
 // ---------- Adaptation Engine ----------

@@ -14,7 +14,7 @@ titik teal di atas, latar indigo gelap. File asli disalin byte-for-byte ke
 bayangan lembut, headline besar, mobile-first. Landing: hero, 3 kolom
 "Latih. Dinilai. Naik Level.", "Semua Latihanmu, di Satu Layar" (dari data
 asli pengguna, honest empty state bila 0 sesi — tanpa testimoni/statistik
-palsu), kartu 4 pilar 13/3/3/5 = 24 skenario, FAQ fakta produk, headline
+palsu), kartu 5 pilar 13/3/3/5/5 = 29 skenario, FAQ fakta produk, headline
 penutup "WAKTUMU LEBIH BERHARGA DARIPADA TERUS GUGUP SAAT BICARA.", footer
 indigo. Merah hanya untuk sinyal bahaya/error (hapus riwayat, akhiri sesi,
 pola berbahaya, kelemahan berulang, pesan error); tombol "Lanjutkan sesi aktif"
@@ -25,14 +25,16 @@ Roleplay Agent jadi sparring partner, Evaluation Agent menilai dengan rubrik
 per skenario + bukti kutipan. **Login email + password** (sistem sesi custom, hash scrypt), sesi 30 hari, data tiap akun terpisah.
 Tidak perlu setup OAuth / login pihak ketiga sama sekali.
 
-- **4 pilar, 24 skenario:** Interpersonal (13), PR/Krisis (3), Marketing & Sales (3),
-  Personal Branding (5) — Wawancara Kerja, Wawancara Beasiswa LPDP, Orang Tua
+- **5 pilar, 29 skenario:** Interpersonal (13), PR/Krisis (3), Marketing & Sales (3),
+  Personal Branding (5), Public Speaking (5) — Wawancara Kerja, Wawancara Beasiswa LPDP, Orang Tua
   Menuntut, Minta Maaf, PHK & Pesangon, Teguran Keras, Menolak Tawaran Gaji,
   Menolak Pinjaman, Feedback ke Bawahan, Berani Bicara di Rapat, Menolak Beban
   Kerja, Rekan Pasif-Agresif, Negosiasi Gaji; Hoax/Fitnah Viral, Review Bintang 1,
   Live TikTok/IG; Skeptical Buyer "di Shopee lebih murah", Pitch Investor 2 Menit,
   Closing WA/DM PHP; Elevator Pitch, Hater, Cancel Culture, Endorsement/Rate Card,
-  Podcast Expert.
+  Podcast Expert; Pidato Pembukaan Acara, Presentasi Proyek di Depan Atasan,
+  MC / Pembawa Acara Formal, Kuliah Umum / Ceramah di Depan Audiens Besar,
+  Debat / Menyampaikan Pendapat di Forum.
 - **Roleplay Bebas:** buat skenariomu sendiri — persona + sifat + situasi +
   tujuan → kartu persona + rubrik dinamis, 5 template sekali ketuk, tahap
   Pembuka/Digali/Keberatan & Penutup, maks 12 giliran, evaluasi 5 bagian
@@ -51,14 +53,81 @@ Tidak perlu setup OAuth / login pihak ketiga sama sekali.
   postingan → 4 skor + bio baru), Content Coach (draf Threads/LinkedIn → skor
   Hook/Kejelasan/Kejujuran + 3 hook rewrite). **Tanpa** scheduler posting,
   auto-DM, atau analitik follower.
+- **Pilar V Public Speaking:** 5 skenario — Pidato Pembukaan Acara, Presentasi
+  Proyek di Depan Atasan, MC / Pembawa Acara Formal, Kuliah Umum / Ceramah di
+  Depan Audiens Besar, Debat / Menyampaikan Pendapat di Forum. Rubrik memakai
+  dimensi yang sudah dikenal evaluator (Struktur, Bukti, Pembuka, Hook, Nada,
+  Ketegasan, Ketenangan, Bertahan, Usulan, Relevansi). Pilar Pro seperti
+  pilar non-Free lainnya; Free tetap hanya Interpersonal. Tip 2 skenario
+  (pidato pembukaan, kuliah umum) mengarahkan latihan suara lewat tombol 🎤.
 - **AI:** rule-based sebagai default (tanpa kunci LLM, sesi tetap jalan penuh);
-  bila `OPENAI_API_KEY` dipasang, Roleplay Agent memakai OpenAI — penilaian
+  bila kunci LLM dipasang, Roleplay Agent memakai LLM — OpenAI (default) atau
+  Gemini (lihat bagian "Penyedia LLM: OpenAI & Gemini" di bawah) — penilaian
   tetap memakai fungsi scoring terpisah, tidak pernah ditebak dari prompt.
+
+## Pilar V — Public Speaking
+
+Pilar bawaan ke-5, 5 skenario baru di `src/lib/scenarios.ts` (id
+`public-speaking-*`), masing-masing dengan modelAnswer, tip 2 menit, 2 varian
+kalimat pembuka (`src/lib/opening-variants.ts`), dan pemetaan sifat
+(`traitForScenario` di `src/lib/custom-roleplay.ts`):
+
+| Skenario | Persona | Sifat |
+|---|---|---|
+| Pidato Pembukaan Acara | Pak Hendra, ketua panitia yang menuntut | Menekan |
+| Presentasi Proyek di Depan Atasan | Bu Sinta, atasan yang skeptis dan suka menguji angka | Skeptis |
+| MC / Pembawa Acara Formal | Ibu Ratna, koordinator yang menjaga rundown | Menekan |
+| Kuliah Umum / Ceramah di Depan Audiens Besar | Audiens di baris belakang yang mudah mengantuk | Dingin |
+| Debat / Menyampaikan Pendapat di Forum | Kak Rudi, moderator debat yang tajam | Skeptis |
+
+Adaptation Engine level 1–5 berlaku per pilar seperti pilar lain (level
+disimpan per nama pilar). Jalur Belajar Tes Awal bisa merekomendasikan
+skenario Public Speaking: kunci rubriknya (termasuk `hook` dan `nada`)
+termasuk dalam pemetaan dimensi di `src/lib/diagnostic.ts`. "Sesuaikan &
+Mainkan" / "Duplikasi & Sesuaikan" jalan untuk kelima skenario baru karena
+memakai jalur yang sama dengan skenario bawaan lainnya. Brand Audit / Content Coach
+tidak berubah.
+
+## Penyedia LLM: OpenAI & Gemini
+
+Roleplay Agent memakai LLM bila ada kunci yang dipasang — tanpa kunci, sesi
+tetap jalan penuh dengan mesin rule-based. Abstraksi penyedia ada di
+`src/lib/llm-provider.ts` (`getActiveProvider()`):
+
+**Aturan pemilihan:**
+1. `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` terisi → **Gemini**.
+2. `LLM_PROVIDER=openai` (default) + `OPENAI_API_KEY` terisi → **OpenAI**.
+3. Bila penyedia yang diminta kuncinya kosong, dipakai penyedia lain bila
+   kuncinya ada; bila tidak ada kunci sama sekali → rule-based.
+4. Engine yang tampil di UI selalu penyedia yang **benar-benar menjawab**:
+   `"openai"`, `"gemini"`, atau `"rule-based (persona)"`.
+
+**Cara mengaktifkan di Vercel** (Settings → Environment Variables, Production):
+- OpenAI: isi `OPENAI_API_KEY` (buat di platform.openai.com). `LLM_PROVIDER`
+  boleh kosong / `"openai"`.
+- Gemini: isi `GEMINI_API_KEY` (buat di Google AI Studio: aistudio.google.com)
+  dan set `LLM_PROVIDER="gemini"`. `GEMINI_MODEL` opsional, default
+  `gemini-2.0-flash`. Cek kuota gratis di AI Studio — kuota gratis ada tapi
+  tidak dijamin.
+
+**Yang sama untuk kedua penyedia:** prompt persona yang sama persis (jadi
+perilaku persona identik), suhu dan batas token yang sama, dan **satu batas
+harian yang sama: 30 giliran LLM per pengguna per hari (WIB)** — dihitung
+hanya bila panggilan LLM berhasil, apa pun penyedianya (`src/lib/llm-usage.ts`).
+Panggilan Gemini: `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
+dengan kunci sebagai query parameter; respons non-OK atau candidates kosong →
+fallback ke rule-based dan error dicatat di log server (tanpa kunci).
+
+**Batas yang jujur:** TIDAK ada kunci LLM yang terpasang di server saat ini
+— OpenAI maupun Gemini sama-sama belum diisi di Vercel, jadi situs live
+masih memakai rule-based sampai pemilik menambahkan kuncinya. Panggilan
+Gemini baru diverifikasi lewat unit test dengan respons tiruan, BELUM
+terhadap API Google yang sebenarnya.
 
 ## Roleplay Bebas — Skenario Buatanmu (tab baru)
 
 Tab **Roleplay Bebas** di Beranda, di samping Pilih Skenario. Untuk situasi
-yang tidak ada di 24 skenario tetap: kamu yang menentukan lawan bicara,
+yang tidak ada di 29 skenario tetap: kamu yang menentukan lawan bicara,
 situasi, dan tujuanmu.
 
 **Cara pakai:**
@@ -90,8 +159,9 @@ situasi, dan tujuanmu.
    perbandingan dengan sesi lalu), dan sesi custom ikut masuk memori dan
    Adaptation Engine seperti skenario tetap.
 6. **Mesin yang menjawab ditampilkan jujur di ruangan:** "OpenAI
-   (GPT-4o-mini)" bila `OPENAI_API_KEY` dipasang, atau "Rule-based persona"
-   bila tidak. Tanpa kunci, persona menjawab dari **bank keberatan per
+   (GPT-4o-mini)" bila `OPENAI_API_KEY` dipasang, "Gemini" bila
+   `GEMINI_API_KEY` dipasang (dan `LLM_PROVIDER=gemini`), atau "Rule-based persona"
+   bila tidak ada kunci. Tanpa kunci, persona menjawab dari **bank keberatan per
    sifat** (5+ balasan berbeda per sifat: Skeptis/Marah/Ragu-ragu/Dingin/
    Menekan, dipilih per tahap, memakai nama persona, kata situasi, dan
    pesan terakhirmu) — bukan 3 baris generik lama. Dengan kunci, persona
@@ -116,12 +186,12 @@ kamu tulis tersimpan di akunmu dan bisa dihapus lewat Hapus Semua Riwayat
 & Memori.
 
 **Tanpa kunci LLM pun jalan penuh** (mode rule-based persona); dengan
-`OPENAI_API_KEY`, persona jauh lebih hidup — penilaiannya tetap memakai
+`OPENAI_API_KEY` atau `GEMINI_API_KEY`, persona jauh lebih hidup — penilaiannya tetap memakai
 fungsi scoring terpisah, tidak pernah ditebak dari prompt.
 
 ## Menyesuaikan Skenario Tetap — "Duplikasi & Sesuaikan"
 
-24 skenario tetap itu **statis dan tidak diubah** (id, judul, pilar tetap
+29 skenario tetap itu **statis dan tidak diubah** (id, judul, pilar tetap
 sama, supaya memori dan level adaptasi tidak rusak). Tapi setiap kartu
 skenario di tab Pilih Skenario punya tombol **Duplikasi & Sesuaikan**.
 
@@ -183,8 +253,8 @@ Tab **Skenarioku** mengubah Phatica dari katalog tetap menjadi studio:
 pengguna menyimpan skenario latihannya sendiri di bawah pilarnya sendiri.
 
 **Yang ada di tab ini:**
-- **Pilar Bawaan** — 4 pilar tetap (Interpersonal, PR/Krisis, Marketing &
-  Sales, Personal Branding), ditandai "bawaan", tidak bisa diubah/dihapus.
+- **Pilar Bawaan** — 5 pilar tetap (Interpersonal, PR/Krisis, Marketing &
+  Sales, Personal Branding, Public Speaking), ditandai "bawaan", tidak bisa diubah/dihapus.
   Skenario buatanmu juga bisa disimpan di pilar bawaan.
 - **Pilarku** — pilar buatan pengguna: nama (2–40 karakter), deskripsi
   opsional (maks 200), warna dari palet tetap 6 warna, ikon dari daftar
@@ -218,7 +288,7 @@ pengguna menyimpan skenario latihannya sendiri di bawah pilarnya sendiri.
 
 **Memainkan skenario Skenarioku:** memakai ruang latihan yang sama —
 tahap Pembuka → Digali → Keberatan & Penutup, bank keberatan per sifat,
-LLM persona ketat bila `OPENAI_API_KEY` dipasang (kalau tidak, rule-based),
+LLM persona ketat bila kunci LLM dipasang — OpenAI atau Gemini (kalau tidak, rule-based),
 evaluasi 5 bagian yang sama **dengan rubrik skenario itu sendiri**.
 Memulai sesi menaikkan `playCount` dan menautkan sesi ke skenario
 (`PracticeSession.customScenarioId`); riwayat menandainya **"Skenarioku"**.
@@ -253,7 +323,7 @@ melepas tautan — riwayat sesi tetap tersimpan). Migrasi kedua:
 hanya tabel/fitur baru — migrasi awal tidak disentuh).
 
 **Batas yang jujur:** skenario Skenarioku privat per akun (tidak bisa
-dibagikan ke akun lain); tanpa `OPENAI_API_KEY` sesi tetap jalan penuh
+dibagikan ke akun lain); tanpa kunci LLM (OpenAI/Gemini) sesi tetap jalan penuh
 dengan mesin rule-based; **Jalur Belajar Tes Awal masih memakai 24
 skenario bawaan** — skenario Skenarioku bisa dimainkan dan dilacak
 (playCount + riwayat), tapi tidak dimasukkan otomatis ke jalur belajar.
@@ -319,7 +389,8 @@ Alurnya:
 npm install
 cp .env.example .env.local
 # Isi di .env.local: DATABASE_URL, SESSION_SECRET (string acak panjang).
-# OPENAI_API_KEY opsional — kosong = mesin rule-based.
+# OPENAI_API_KEY / GEMINI_API_KEY opsional — kosong = mesin rule-based.
+# LLM_PROVIDER="openai" (default) atau "gemini"; GEMINI_MODEL default gemini-2.0-flash.
 # RESEND_API_KEY + EMAIL_FROM opsional — kosong = reset password lewat email
 #   tidak jalan (UI jujur menampilkan itu); ganti password saat masuk tetap jalan.
 npx prisma migrate deploy      # Buat tabel dari prisma/migrations/ (database BARU).
@@ -351,7 +422,7 @@ Tidak perlu GitHub Desktop dan tidak perlu terminal/git.
 cd phatica
 git init
 git add .
-git commit -m "Phatica.ai v1: Multi-Agent AI training (login email + password, 24 skenario, evaluator per-rubrik, Pilar IV Personal Branding)"
+git commit -m "Phatica.ai v1: Multi-Agent AI training (login email + password, 29 skenario, evaluator per-rubrik, Pilar IV Personal Branding, Pilar V Public Speaking)"
 # Buat repo kosong di github.com (misal: phatica) — JANGAN centang README/.gitignore di GitHub
 git remote add origin https://github.com/NAMA-USER/phatica.git
 git branch -M main
@@ -387,7 +458,10 @@ git push -u origin main
 
 - `DATABASE_URL` — connection string Postgres (Neon)
 - `SESSION_SECRET` — string acak panjang (mis. `openssl rand -base64 32`)
-- `OPENAI_API_KEY` — opsional; kosong = AI rule-based
+- `OPENAI_API_KEY` — opsional; kosong = AI rule-based (bila GEMINI_API_KEY juga kosong)
+- `LLM_PROVIDER` — opsional; "openai" (default) atau "gemini"
+- `GEMINI_API_KEY` — opsional; kunci Gemini dari Google AI Studio (aistudio.google.com)
+- `GEMINI_MODEL` — opsional; default gemini-2.0-flash
 - `RESEND_API_KEY` — opsional; hanya untuk reset password lewat email (Resend)
 - `EMAIL_FROM` — opsional; alamat pengirim email reset (harus terverifikasi di Resend)
 - `NEXT_PUBLIC_SITE_URL` — opsional; dipakai sitemap/robots dan Open Graph (fallback: https://phatica.vercel.app)
@@ -428,7 +502,7 @@ memerlukan setup OAuth apa pun.
   Skor 4 dimensi dasar — Bukti, Struktur, Empati, Ketegasan — memakai fungsi
   `scoreDimension` yang sama dengan evaluator, jadi angka Tes Awal bisa
   dibandingkan dengan skor sesi. Bisa dilewati, bisa diulang (Tes Ulang).
-- Jalur belajar: 2 dimensi terlemah → 3 skenario berurutan dari 24 katalog
+- Jalur belajar: 2 dimensi terlemah → 3 skenario berurutan dari 29 katalog
   (dipilih dari rubriknya), masing-masing dengan tombol Mulai. Selesai 1
   skenario = 1 centang. Aturan "sudah bisa" yang jujur: skor ≥75 pada dimensi
   terlemah di 2 sesi. Model Prisma: `Diagnostic` (scores, weakest, path JSON).
@@ -523,11 +597,11 @@ prisma/schema.prisma      # User (email + passwordHash scrypt),
                           # Diagnostic (Tes Awal + jalur belajar),
                           # Drill (latihan 2 menit, jatuh tempo besok),
                           # BrandProfile, BrandAudit, ContentReview, Subscription
-src/lib/scenarios.ts      # Katalog 24 skenario (4 pilar) + rubrik per skenario +
+src/lib/scenarios.ts      # Katalog 29 skenario (5 pilar) + rubrik per skenario +
                           # modelAnswer + tip (pelajaran 2 menit) per skenario
 src/lib/custom-roleplay.ts # Roleplay Bebas: kartu persona, rubrik dinamis,
                           # 5 template, validasi + daftar kata yang diblokir, tahap & batas 12 giliran;
-                          # pemetaan sifat 24 skenario tetap (traitForScenario),
+                          # pemetaan sifat 29 skenario tetap (traitForScenario),
                           # kartu persona dari skenario, rubrik hasil penyesuaian
                           # (buildCustomizedRubric: rubrik asli + 1 dimensi dari tujuan baru)
 src/lib/custom-library.ts  # Skenarioku + Pilarku: batas 5 pilar / 20 skenario,
@@ -538,6 +612,10 @@ src/lib/custom-library.ts  # Skenarioku + Pilarku: batas 5 pilar / 20 skenario,
 src/lib/opening-variants.ts # 2 varian kalimat pembuka per skenario tetap +
                           # pickOpeningVariant (acak tiap sesi baru, dicatat di sesi)
 src/lib/ai.ts             # Roleplay Agent, Adaptation Engine, Evaluation Agent
+src/lib/llm-provider.ts   # Pemilihan penyedia LLM (OpenAI/Gemini/rule-based),
+                          # panggilan OpenAI + Gemini (prompt sama), parse respons Gemini
+src/lib/llm-usage.ts      # Batas LLM harian 30 giliran/pengguna/hari (WIB) —
+                          # SATU batas untuk OpenAI maupun Gemini, dihitung hanya bila sukses
                           # (satu fungsi scoring per dimensi rubrik), Brand Audit,
                           # Content Coach — rule-based + OpenAI opsional; bank
                           # keberatan per sifat + LLM persona ketat untuk Roleplay Bebas;
@@ -574,7 +652,7 @@ src/app/api/auth/login    # Masuk email + password (401 bila salah)
 src/app/api/auth/logout   # Keluar, hapus sesi
 src/app/api/auth/register # Daftar email + password (409 bila email sudah terdaftar)
 src/app/api/auth/me       # {user:null} bila belum login
-src/app/api/scenarios     # 24 skenario (401 bila belum login)
+src/app/api/scenarios     # 29 skenario (401 bila belum login)
 src/app/api/custom-roleplay        # Daftar Skenario Buatanmu milik akun (401 bila belum login)
 src/app/api/custom-roleplay/create # Buat Skenario Buatanmu: validasi + blokir kata,
                           # kembalikan kartu persona + rubrik dinamis (401 bila belum login)
@@ -688,12 +766,20 @@ src/app/api/history       # Hapus semua riwayat & memori
   tanpa email. Yang harus kamu tes setelah deploy: daftar dengan email →
   masuk Beranda, dan (bila Resend dipasang) Lupa password? → cek email →
   atur password baru → masuk lagi.
-- **Pembayaran SIMULASI saja (bila tombol langganan dipasang lagi).**
+- **Kunci LLM belum terpasang di server.** OpenAI maupun Gemini sama-sama
+  belum diisi di Vercel — situs live masih memakai rule-based sampai kunci
+  ditambahkan (lihat "Penyedia LLM: OpenAI & Gemini"). Panggilan Gemini baru
+  diverifikasi lewat unit test dengan respons tiruan, belum terhadap API
+  Google yang sebenarnya. Kuota gratis Gemini tidak dijamin.
+- **Tes Daftar live masih menunggu.** Daftar dengan email → masuk Beranda
+  belum dites terhadap database live setelah perubahan ini; begitu juga
+  skenario Pilar V dan jawaban Gemini end-to-end (baru dites di unit test
+  dan smoke test lokal).
   Upgrade/trial hanya mengubah paket di database.
   Tidak ada Midtrans live, tidak ada tagihan nyata.
 - **Tanpa scheduler posting, auto-DM, atau analitik follower** — sesuai desain
   Pilar IV (coaching saja).
-- AI tanpa `OPENAI_API_KEY` memakai mesin rule-based — sesi dan evaluasi tetap
+- AI tanpa kunci LLM (OpenAI/Gemini) memakai mesin rule-based — sesi dan evaluasi tetap
   jalan penuh, skor dihitung dari metrik transkrip, tidak mengarang angka.
   Roleplay Bebas tanpa kunci memakai bank keberatan per sifat; dengan kunci,
   persona menjawab lewat LLM dengan system prompt ketat dari kartu persona.
@@ -708,9 +794,9 @@ src/app/api/history       # Hapus semua riwayat & memori
   dihitung dari transkripsi browser, bukan analisis audio. Drill dan
   pengingat hanya ada di aplikasi — belum ada email/push.
 - **Batas Skenarioku yang jujur:** skenario dan pilar buatanmu privat per
-  akun (tidak bisa dibagikan ke akun lain); tanpa `OPENAI_API_KEY` sesi
+  akun (tidak bisa dibagikan ke akun lain); tanpa kunci LLM sesi
   tetap jalan penuh dengan mesin rule-based; Jalur Belajar Tes Awal masih
-  memakai 24 skenario bawaan — skenario Skenarioku bisa dimainkan dan
+  memakai 29 skenario bawaan — skenario Skenarioku bisa dimainkan dan
   dilacak, tapi tidak dimasukkan otomatis ke jalur belajar. Menghapus
   skenario tidak menghapus riwayat sesinya; menghapus pilar tidak menghapus
   skenarionya (dipindah ke pilar bawaan pilihanmu).

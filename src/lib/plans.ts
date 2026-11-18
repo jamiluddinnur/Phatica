@@ -13,15 +13,15 @@ export const PLANS = {
   },
   pro: {
     name: "Pro", monthly: 99000, annualMonthly: 79200, annualTotal: 950400,
-    desc: "Latihan tanpa batas harian, semua 4 pilar, evaluasi lengkap + riwayat progres, Brand Audit dan Content Coach.",
-    features: ["Simulasi tanpa batas harian", "Semua 4 pilar", "Evaluasi lengkap + riwayat progres", "Brand Audit & Content Coach", "Mode evaluator Jujur Keras / Supportif / Detail Teknis"],
-    limitMonthly: Infinity, pillars: ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding"],
+    desc: "Latihan tanpa batas harian, semua 5 pilar, evaluasi lengkap + riwayat progres, Brand Audit dan Content Coach.",
+    features: ["Simulasi tanpa batas harian", "Semua 5 pilar", "Evaluasi lengkap + riwayat progres", "Brand Audit & Content Coach", "Mode evaluator Jujur Keras / Supportif / Detail Teknis"],
+    limitMonthly: Infinity, pillars: ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding", "Public Speaking"],
   },
   tim: {
     name: "Tim / Institusi", monthly: 1500000, annualMonthly: 1500000, annualTotal: 18000000,
     desc: "Semua fitur Pro untuk satu tim (sampai 10 anggota), dashboard admin, laporan progres anggota, skenario custom.",
     features: ["Semua fitur Pro", "Sampai 10 anggota per tim", "Dashboard admin", "Laporan progres anggota", "Skenario custom"],
-    limitMonthly: Infinity, pillars: ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding"],
+    limitMonthly: Infinity, pillars: ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding", "Public Speaking"],
   },
 } as const;
 export type PlanKey = keyof typeof PLANS;

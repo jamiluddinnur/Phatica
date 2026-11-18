@@ -79,7 +79,7 @@ export function buildPersonaCard(input: { personaName: string; personaRole: stri
   };
 }
 
-// --- Pemetaan sifat untuk 24 skenario tetap (dipilih yang paling masuk akal) ---
+// --- Pemetaan sifat untuk 29 skenario tetap (dipilih yang paling masuk akal) ---
 // Dipakai saat pengguna menduplikasi skenario ("Duplikasi & Sesuaikan") dan saat sesi tetap
 // (yang tidak disesuaikan) berjalan dengan bank keberatan per sifat.
 // Daftar id tidak diubah — ini hanya pemetaan, bukan perubahan katalog.
@@ -108,6 +108,11 @@ const TRAIT_BY_SCENARIO_ID: Record<string, Trait> = {
   "branding-cancel": "Skeptis",
   "branding-endorsement": "Menekan",
   "branding-podcast": "Skeptis",
+  "public-speaking-pidato-pembukaan": "Menekan",
+  "public-speaking-presentasi-atasan": "Skeptis",
+  "public-speaking-mc-formal": "Menekan",
+  "public-speaking-kuliah-umum": "Dingin",
+  "public-speaking-debat-forum": "Skeptis",
 };
 
 export function traitForScenario(s: { id: string; personaRole?: string; title?: string }): Trait {

@@ -1,5 +1,5 @@
 // Katalog skenario Phatica.ai v2 — disalin dari ruang Phatica (Muse space).
-// 24 skenario, 4 pilar. Jangan ubah id — id dipakai untuk memori & level adaptasi.
+// 29 skenario, 5 pilar. Jangan ubah id — id dipakai untuk memori & level adaptasi.
 export type RubricItem = { key: string; label: string; rubric: string; weight: number };
 export type Scenario = {
   id: string; title: string; pillar: string; personaName: string; personaRole: string;
@@ -9,7 +9,7 @@ export type Scenario = {
   modelAnswer: string; tip: string;
 };
 
-export const PILLARS = ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding"] as const;
+export const PILLARS = ["Interpersonal", "PR / Krisis", "Marketing & Sales", "Personal Branding", "Public Speaking"] as const;
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -412,6 +412,96 @@ SCENARIOS.push(
     verdictHint: "Putusan harus berbentuk satu kalimat: apakah pendengar akan menganggapmu expert yang layak diikuti, sekadar narasumber biasa, atau tidak meyakinkan.",
     modelAnswer: "Pertanyaan bagus. Dari pengalaman saya mengajar 10 tahun, ada 3 kesalahan yang paling sering saya lihat - pertama, orang menghafal jawaban; kedua, tidak ada contoh nyata; ketiga, tidak ada penutup. Saya ceritakan satu-satu dengan contoh.",
     tip: "Pelajaran 2 menit: sebagai narasumber, jawab dengan struktur yang bisa diikuti pendengar - sebutkan dulu ada berapa poin, lalu bahas satu-satu dengan contoh. Pendengar mengingat struktur, bukan kalimat panjang.",
+  },
+);
+
+// Pilar V — Public Speaking (5 skenario). Rubrik memakai dimensi yang sudah
+// dikenal scoreDimension di ai.ts (tidak ada kunci dimensi baru).
+SCENARIOS.push(
+  {
+    id: "public-speaking-pidato-pembukaan", title: "Pidato Pembukaan Acara", pillar: "Public Speaking",
+    personaName: "Pak Hendra", personaRole: "Ketua panitia acara yang menuntut sambutan singkat dan berkesan",
+    context: "Kamu diminta memberi sambutan pembuka di acara resmi kampus atau komunitas, di depan ratusan orang. Panitia sudah mengingatkan: jangan panjang, jangan membosankan, dan jangan membaca teks kata per kata.",
+    opening: "Selamat datang semuanya. Kita mulai acaranya sekarang — dan sambutan pembuka dari kamu, ya. Ingat: singkat, padat, dan buat audiens merasa acara ini penting untuk diikuti sampai selesai.",
+    goal: "Membuka acara dengan sambutan singkat yang membuat audiens paham kenapa acara ini penting dan mau mendengarkan sampai akhir.",
+    baseDifficulty: 3, durationLabel: "5–8 menit", evaluatorMode: "Seimbang", fourthLabel: "Pembuka yang Kuat",
+    rubric: [
+      { key: "pembuka", label: "Pembuka yang Kuat", rubric: "apakah kalimat pertama langsung menyampaikan kenapa acara ini penting — bukan pemanasan panjang yang membuat audiens berhenti mendengarkan", weight: 0.3 },
+      { key: "struktur", label: "Struktur Jawaban", rubric: "apakah sambutan mengalir jelas: sapaan, inti pesan, lalu penutup — bukan cerita acak tanpa ujung", weight: 0.25 },
+      { key: "percaya_diri", label: "Kepercayaan Diri", rubric: "apakah sambutan terdengar yakin dan tenang, tanpa merendahkan diri berlebihan dan tanpa terdengar menghafal", weight: 0.25 },
+      { key: "usulan", label: "Usulan yang Jelas", rubric: "apakah sambutan ditutup dengan ajakan yang jelas — apa yang diharapkan dari audiens setelah ini", weight: 0.2 },
+    ],
+    verdictHint: "Putusan harus berbentuk satu kalimat: apakah audiens merasa acara ini penting dan mau mendengarkan sampai akhir, sekadar sopan mendengarkan, atau sudah bosan sejak pembuka.",
+    modelAnswer: "Selamat pagi, dan terima kasih sudah datang. Acara hari ini penting karena kita akan belajar langsung dari tiga pembicara yang sudah belasan tahun di bidangnya — jadi mari manfaatkan 2 jam ke depan sebaik-baiknya.",
+    tip: "Pelajaran 2 menit: pidato pembuka yang bagus cuma butuh 3 bagian - sapaan hangat, satu alasan kenapa acara ini penting, dan ajakan untuk mengikuti sampai akhir. Latih dengan suara keras memakai tombol 🎤 di Ruang Latihan, supaya kamu dengar sendiri ritme dan jedamu.",
+  },
+  {
+    id: "public-speaking-presentasi-atasan", title: "Presentasi Proyek di Depan Atasan", pillar: "Public Speaking",
+    personaName: "Bu Sinta", personaRole: "Atasan yang skeptis dan suka menguji angka",
+    context: "Kamu memaparkan hasil proyek tim di depan pimpinan. Presentasimu sudah siap, tapi Bu Sinta terkenal suka memotong di tengah dan menguji angka yang kamu sebutkan.",
+    opening: "Silakan mulai. Saya dengar proyek ini selesai tepat waktu — tapi saya mau lihat buktinya: apa hasil nyatanya, dan kenapa saya harus percaya angka-angka itu?",
+    goal: "Memaparkan hasil kerja dengan jelas dan menjawab pertanyaan yang menekan tanpa gugup atau berbelit.",
+    baseDifficulty: 4, durationLabel: "7–10 menit", evaluatorMode: "Jujur Keras", fourthLabel: "Bukti & Angka",
+    rubric: [
+      { key: "bukti", label: "Bukti Konkret", rubric: "apakah ada contoh nyata, angka, atau hasil terukur — bukan klaim umum seperti 'proyek ini berhasil'", weight: 0.3 },
+      { key: "struktur", label: "Struktur Jawaban", rubric: "apakah presentasi mengalir jelas: masalah, yang dikerjakan, hasil — bukan lompat-lompat tanpa ujung", weight: 0.25 },
+      { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi/jawaban disampaikan jelas dan berani saat ditekan, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.25 },
+      { key: "bertahan", label: "Bertahan Saat Dipotong", rubric: "apakah pembelajar tetap sopan tapi berhasil menyelesaikan maksudnya saat dipotong atau dialihkan", weight: 0.2 },
+    ],
+    verdictHint: "Putusan harus berbentuk satu kalimat: apakah pimpinan percaya pada hasil proyekmu dan menyetujui langkah berikutnya, masih ragu, atau justru makin meragukanmu.",
+    modelAnswer: "Proyek ini selesai 2 hari lebih cepat dari tenggat. Hasilnya: waktu proses turun dari 5 hari menjadi 2 hari, dan keluhan pelanggan soal keterlambatan berkurang separuh dalam sebulan. Langkah berikutnya: kami terapkan cara yang sama ke 2 proyek lain.",
+    tip: "Pelajaran 2 menit: presentasi yang meyakinkan berdiri di atas 1 angka sebelum dan 1 angka sesudah — bukan di atas kalimat 'proyek ini sukses'. Kalau ditanya menekan, jawab angkanya dulu, baru jelaskan caranya.",
+  },
+  {
+    id: "public-speaking-mc-formal", title: "MC / Pembawa Acara Formal", pillar: "Public Speaking",
+    personaName: "Ibu Ratna", personaRole: "Koordinator acara formal yang menjaga rundown tetap tepat waktu",
+    context: "Kamu MC acara resmi — pelantikan atau seminar — dengan rundown ketat dan tamu penting. Satu segmen molor, audiens mulai gelisah, dan kamu harus menjaga alur tanpa terlihat panik.",
+    opening: "Kita sudah molor 10 menit dari rundown. Kamu yang pegang panggung — selamatkan acaranya. Audiens mulai gelisah, jadi jangan biarkan ada jeda kosong.",
+    goal: "Memandu acara resmi dengan alur yang rapi: transisi antar segmen mulus, energi ruangan terjaga, dan rundown kembali tepat waktu.",
+    baseDifficulty: 3, durationLabel: "7–10 menit", evaluatorMode: "Seimbang", fourthLabel: "Pembuka yang Kuat",
+    rubric: [
+      { key: "pembuka", label: "Pembuka yang Kuat", rubric: "apakah kalimat pertama langsung menyampaikan inti dan mengarahkan perhatian audiens — bukan pemanasan panjang", weight: 0.3 },
+      { key: "struktur", label: "Struktur Jawaban", rubric: "apakah alur yang disampaikan jelas: segmen sekarang, segmen berikutnya, dan apa yang diharapkan dari audiens", weight: 0.25 },
+      { key: "ketenangan", label: "Ketenangan", rubric: "apakah nada tetap tenang dan terkendali saat rundown berantakan, tidak terpancing panik, tidak menyalahkan siapa pun", weight: 0.25 },
+      { key: "kejelasan_maksud", label: "Kejelasan Maksud", rubric: "apakah yang diumumkan disampaikan jelas sejak awal, tidak berputar-putar sampai audiens bingung", weight: 0.2 },
+    ],
+    verdictHint: "Putusan harus berbentuk satu kalimat: apakah acara berjalan rapi dan audiens tetap terlibat, acaranya selamat tapi terasa kacau, atau alurnya berantakan dan audiens kehilangan perhatian.",
+    modelAnswer: "Terima kasih atas sambutannya. Kita lanjut ke segmen berikutnya — sesi tanya jawab selama 15 menit. Silakan siapkan pertanyaan Anda, dan saya persilakan penanya pertama dari baris depan.",
+    tip: "Pelajaran 2 menit: MC yang baik selalu memberi audiens peta — 'kita di segmen ini, setelah ini ada itu'. Saat rundown molor, jangan minta maaf berulang-ulang: akui sekali dengan tenang, lalu bawa audiens ke segmen berikutnya.",
+  },
+  {
+    id: "public-speaking-kuliah-umum", title: "Kuliah Umum / Ceramah di Depan Audiens Besar", pillar: "Public Speaking",
+    personaName: "Audiens di Baris Belakang", personaRole: "Peserta kuliah umum yang mudah mengantuk kalau materi membosankan",
+    context: "Kamu memberi kuliah umum di aula besar. Sebagian audiens sudah mengantuk di 10 menit pertama — mereka butuh alasan untuk tetap mendengarkan sampai akhir.",
+    opening: "Jujur saja, saya datang ke sini karena wajib. Kalau 5 menit pertama membosankan, saya akan buka ponsel saya. Coba buat saya tetap mendengarkan.",
+    goal: "Menyampaikan materi panjang dengan jelas: ada struktur yang bisa diikuti, contoh yang dekat dengan audiens, dan jeda yang menjaga perhatian.",
+    baseDifficulty: 4, durationLabel: "7–10 menit", evaluatorMode: "Seimbang", fourthLabel: "Daya Tarik Pembuka",
+    rubric: [
+      { key: "hook", label: "Daya Tarik Pembuka", rubric: "apakah kalimat pembuka membuat audiens berhenti dan ingin dengar lanjutannya — spesifik, bukan basa-basi", weight: 0.3 },
+      { key: "struktur", label: "Struktur Jawaban", rubric: "apakah materi mengalir jelas: ada berapa poin, lalu dibahas satu-satu dengan contoh — bukan ceramah tanpa arah", weight: 0.25 },
+      { key: "bukti", label: "Bukti Konkret", rubric: "apakah ada contoh nyata atau angka yang membuat materi terasa dekat dengan kehidupan audiens — bukan teori tanpa contoh", weight: 0.25 },
+      { key: "nada", label: "Konsistensi Nada", rubric: "apakah nada bicara konsisten dan hidup — tidak monoton dari awal sampai akhir", weight: 0.2 },
+    ],
+    verdictHint: "Putusan harus berbentuk satu kalimat: apakah audiens tetap mendengarkan dan mengingat pesanmu, mendengarkan tapi tidak mengingat apa-apa, atau sudah beralih ke ponselnya.",
+    modelAnswer: "Saya mulai dari pertanyaan: berapa dari Anda yang pernah gugup bicara di depan orang banyak? Hampir semua, kan? Hari ini saya bahas 3 cara mengatasinya — pertama, persiapan; kedua, latihan suara; ketiga, cara menutup dengan kuat.",
+    tip: "Pelajaran 2 menit: ceramah panjang yang tidak membosankan selalu dibuka dengan pertanyaan atau cerita yang dekat dengan audiens, lalu diberi peta — 'ada 3 poin'. Latih pembukamu dengan suara keras memakai tombol 🎤 di Ruang Latihan, dan dengarkan apakah nada suaramu naik-turun atau datar saja.",
+  },
+  {
+    id: "public-speaking-debat-forum", title: "Debat / Menyampaikan Pendapat di Forum", pillar: "Public Speaking",
+    personaName: "Kak Rudi", personaRole: "Moderator debat yang tajam dan lawan diskusi yang kritis",
+    context: "Forum diskusi kampus atau komunitas. Kamu mempertahankan pendapatmu di depan lawan yang kritis dan moderator yang tidak segan memotong argumen yang lemah.",
+    opening: "Pendapatmu sudah saya dengar — tapi lawanmu baru saja mematahkan argumen itu dengan satu contoh. Sekarang giliranmu: pertahankan posisimu, atau akui kelemahannya?",
+    goal: "Mempertahankan pendapat dengan argumen yang rapi: klaim, bukti, dan jawaban atas serangan lawan — tanpa emosi dan tanpa menghindar.",
+    baseDifficulty: 4, durationLabel: "7–10 menit", evaluatorMode: "Jujur Keras", fourthLabel: "Ketegasan yang Sopan",
+    rubric: [
+      { key: "bukti", label: "Bukti Konkret", rubric: "apakah ada contoh nyata atau angka yang mendukung argumenmu — bukan sekadar 'menurut saya' tanpa dasar", weight: 0.3 },
+      { key: "ketegasan", label: "Ketegasan yang Sopan", rubric: "apakah posisi disampaikan jelas dan berani saat diserang, tanpa agresif, tanpa berbelit, dan tanpa menghindar", weight: 0.25 },
+      { key: "ketenangan_tegas", label: "Tenang tapi Tegas", rubric: "apakah pembelajar tetap tenang, tidak terpancing emosi saat diserang, dan berani mengakui kelemahan argumennya bila memang ada", weight: 0.25 },
+      { key: "relevansi", label: "Nyambung dengan Konteks", rubric: "apakah jawaban menghubungkan argumen dengan topik forum — bukan menyimpang ke hal lain saat tertekan", weight: 0.2 },
+    ],
+    verdictHint: "Putusan harus berbentuk satu kalimat: apakah argumenmu bertahan dan meyakinkan forum, bertahan tapi goyah, atau runtuh di bawah serangan lawan.",
+    modelAnswer: "Saya setuju sebagian dengan lawan saya — memang ada risikonya. Tapi contohnya: ketika aturan ini diterapkan di 2 kampus lain, pelanggaran justru turun karena sanksinya jelas. Jadi masalahnya bukan aturannya, tapi penegakannya.",
+    tip: "Pelajaran 2 menit: argumen debat yang kuat punya 3 bagian - klaim, bukti, dan jawaban atas serangan terkuat lawan. Dan jangan takut mengakui satu kelemahan kecil: itu justru membuat argumenmu yang lain lebih dipercaya.",
   },
 );
 

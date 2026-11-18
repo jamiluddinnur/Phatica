@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   ),
   title: "Phatica — AI-Powered Strategic Communication Skills.",
   description:
-    "Komunikasi Strategis, Dilatih dengan Kecerdasan Buatan. Latihan komunikasi dengan sparring partner AI: roleplay 24 skenario di 4 pilar, dinilai Evaluation Agent dengan rubrik dan bukti kutipan, lalu naik level lewat memori antar-sesi.",
+    "Komunikasi Strategis, Dilatih dengan Kecerdasan Buatan. Latihan komunikasi dengan sparring partner AI: roleplay 29 skenario di 5 pilar, dinilai Evaluation Agent dengan rubrik dan bukti kutipan, lalu naik level lewat memori antar-sesi.",
   icons: { icon: "/logo.webp", apple: "/logo.webp" },
   manifest: "/manifest.webmanifest",
   openGraph: {

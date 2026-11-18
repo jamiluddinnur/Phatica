@@ -1,4 +1,4 @@
-// Varian kalimat pembuka untuk 24 skenario tetap.
+// Varian kalimat pembuka untuk 29 skenario tetap.
 // Setiap sesi baru (disesuaikan maupun tidak) memakai salah satu secara acak:
 // kalimat pembuka asli (indeks 0) atau salah satu varian di bawah ini.
 // Indeks yang dipakai dicatat di PracticeSession.openingVariant.
@@ -99,6 +99,26 @@ export const OPENING_VARIANTS: Record<string, string[]> = {
   "branding-podcast": [
     "Pendengar kami suka yang konkret. Jadi saya langsung saja: ceritakan satu momen ketika keahlianmu benar-benar diuji — dan hasilnya?",
     "Selamat datang! Sebelum kita mulai, saya mau tahu: apa satu hal yang pendengar kami akan ingat darimu setelah episode ini?",
+  ],
+  "public-speaking-pidato-pembukaan": [
+    "Audiens sudah duduk semua dan menunggu. Sambutanmu cuma 3 menit — buat mereka merasa datang ke acara ini adalah keputusan yang tepat.",
+    "Saya serahkan panggungnya ke kamu. Ingat: jangan baca teks, tatap audiens, dan tutup dengan satu kalimat yang mereka ingat.",
+  ],
+  "public-speaking-presentasi-atasan": [
+    "Saya sudah baca slidemmu. Sekarang saya mau dengar langsung: dari semua angka di sana, mana satu hasil yang paling kamu banggakan — dan kenapa?",
+    "Waktu kita 10 menit. Langsung ke intinya: apa masalahnya, apa yang kamu lakukan, dan apa hasilnya — tanpa latar belakang yang panjang.",
+  ],
+  "public-speaking-mc-formal": [
+    "Segmen berikutnya tamu pentingnya sudah menunggu di belakang panggung. Bawa audiens ke sana dengan mulus — jangan sampai ada jeda canggung.",
+    "Audiens mulai gelisah karena molor. Kamu MC-nya — tenangkan ruangan dengan satu kalimat, lalu lanjut ke segmen berikutnya.",
+  ],
+  "public-speaking-kuliah-umum": [
+    "Aula ini besar dan suaramu harus sampai ke baris paling belakang. Mulai dengan sesuatu yang membuat kami semua menoleh — bukan dengan perkenalan panjang.",
+    "Saya sudah dengar banyak ceramah hari ini. Buat yang ini beda: mulai dari cerita atau pertanyaan, bukan dari definisi.",
+  ],
+  "public-speaking-debat-forum": [
+    "Lawanmu baru saja bilang pendapatmu tidak realistis. Forum menunggu jawabanmu — jawab dengan bukti, bukan dengan nada tinggi.",
+    "Moderator di sini tidak akan melindungimu. Argumenmu lemah di satu titik — perbaiki sekarang, atau lawanmu akan menyerang titik itu lagi.",
   ],
 };
 
