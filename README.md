@@ -435,10 +435,11 @@ npx prisma migrate deploy      # Buat tabel dari prisma/migrations/ (database BA
 # Database LAMA yang dulu dibuat via `db push`: baseline dulu, sekali saja:
 #   npx prisma migrate resolve --applied 20261117063029_init
 #   (baru setelah itu `prisma migrate deploy` bisa dipakai di database itu)
-# `migrate deploy` menerapkan KETIGA migrasi: 20261117063029_init (19 tabel),
+# `migrate deploy` menerapkan KEEMPAT migrasi: 20261117063029_init (19 tabel),
 # 20261118054608_custom_library (CustomPillar, CustomScenario,
-# PracticeSession.customScenarioId — 52 baris, hanya fitur baru), dan
-# 20261119020315_feedback (tabel Feedback — rating + komentar, hanya fitur baru).
+# PracticeSession.customScenarioId — 52 baris, hanya fitur baru),
+# 20261119020315_feedback (tabel Feedback — rating + komentar, hanya fitur baru),
+# dan 20261119101000_tts_usage (tabel TtsUsage — penjaga kredit suara cloud).
 npm run dev                    # http://localhost:3000
 ```
 
@@ -488,9 +489,10 @@ git push -u origin main
    > Vercel CLI / Neon SQL Editor tidak bisa — harus lewat Prisma CLI):
    > `DATABASE_URL="<connection string>" npx prisma migrate resolve --applied 20261117063029_init`
    > Lalu deploy seperti biasa dengan `prisma migrate deploy && npm run build`.
-   > Deploy pertama setelah baseline menerapkan ketiga migrasi sekaligus
+   > Deploy pertama setelah baseline menerapkan keempat migrasi sekaligus
    > (init + `20261118054608_custom_library` untuk Skenarioku/Pilarku +
-   > `20261119020315_feedback` untuk Umpan Balik).
+   > `20261119020315_feedback` untuk Umpan Balik +
+   > `20261119101000_tts_usage` untuk penjaga kredit suara cloud).
    > Fallback bila baseline tidak mau dilakukan: tetap pakai Build Command
    > lama `npx prisma db push && npm run build` — tabel tetap dibuat/diperbarui
    > dari schema, migrasi hanya tidak tercatat.
@@ -505,6 +507,9 @@ git push -u origin main
 - `RESEND_API_KEY` — opsional; hanya untuk reset password lewat email (Resend)
 - `EMAIL_FROM` — opsional; alamat pengirim email reset (harus terverifikasi di Resend)
 - `NEXT_PUBLIC_SITE_URL` — opsional; dipakai sitemap/robots dan Open Graph (fallback: https://phatica.vercel.app)
+- `ELEVENLABS_API_KEY` — opsional; kosong = suara persona memakai suara browser. Bila diisi, suara cloud ElevenLabs menjadi mesin utama Percakapan Suara (lihat bagian "Suara Persona (ElevenLabs)")
+- `ELEVENLABS_VOICE_ID` — opsional; kosong = suara bawaan ElevenLabs ("Rachel")
+- `ELEVENLABS_MODEL` — opsional; default eleven_flash_v2_5
 
 Tidak ada kredensial lain yang dibutuhkan — login email + password tidak
 memerlukan setup OAuth apa pun.
@@ -607,10 +612,59 @@ memerlukan setup OAuth apa pun.
   "🔊 Persona sedang bicara…" — menekan tombol Suara Persona
   menghentikannya. TTS murni lapisan tampilan: tidak mengubah logika
   sesi/evaluasi, dan audio tetap tidak direkam/diunggah.
-- **Batas jujur TTS:** suara yang terdengar adalah suara bawaan browser —
-  bukan suara neural sekelas manusia. Suara sekelas manusia memerlukan
-  TTS cloud berbayar (OpenAI TTS / Google Cloud TTS / ElevenLabs) —
-  **belum termasuk**.
+- **Batas jujur TTS browser:** suara bawaan browser bukan suara neural
+  sekelas manusia. Untuk suara sekelas manusia, pasang ElevenLabs sebagai
+  mesin suara cloud — lihat bagian "Suara Persona (ElevenLabs)" di bawah.
+  Tanpa itu, suara browser tetap menjadi satu-satunya mesin (dan menjadi
+  fallback otomatis bila suara cloud gagal/kuotanya habis).
+
+## Suara Persona (ElevenLabs) — suara cloud untuk Percakapan Suara
+
+- Bila `ELEVENLABS_API_KEY` dipasang di server, balasan persona di mode
+  **Percakapan Suara** dibacakan oleh **ElevenLabs lebih dulu** (suara
+  neural, jauh lebih hidup daripada suara browser). Bila generasi gagal
+  — kuota habis, kunci salah, jaringan putus — klien **otomatis kembali
+  ke suara browser** untuk teks yang sama, dengan catatan kecil sekali
+  per sesi ("Suara cloud tidak tersedia — memakai suara browser").
+  Sesi tidak pernah macet gara-gara suara. Tanpa kunci, perilakunya
+  persis seperti sebelumnya: suara browser saja, tanpa request tambahan.
+- **Kunci hanya hidup di server.** Rute `POST /api/tts` (wajib login)
+  meneruskan teks ke ElevenLabs dan mengembalikan audio/mpeg; browser
+  pengguna tidak pernah melihat kunci maupun voice id. `/api/auth/me`
+  hanya mengirim boolean `ttsCloud` ke klien.
+- **Cara memasang:**
+  1. Daftar gratis di **elevenlabs.io** → menu Profile → **API Key** →
+     salin kuncinya.
+  2. Di Vercel (proyek phatica → Settings → Environment Variables,
+     Production) isi tiga variabel, lalu **Redeploy**:
+     - `ELEVENLABS_API_KEY` = kunci dari langkah 1.
+     - `ELEVENLABS_VOICE_ID` = ID suara pilihanmu (boleh dikosongkan —
+       default suara bawaan "Rachel"). Cara memilih: di dashboard
+       ElevenLabs buka **Voices**, pilih suara yang mendukung Bahasa
+       Indonesia, lalu salin Voice ID-nya.
+     - `ELEVENLABS_MODEL` = boleh dikosongkan — default
+       `eleven_flash_v2_5` (mendukung Bahasa Indonesia, ±0,5
+       kredit/karakter). Alternatif `eleven_multilingual_v2` (kualitas
+       paling stabil, 1 kredit/karakter).
+  3. Login ke Phatica dan nyalakan 🔊 Suara Persona — balasan persona
+     berikutnya sudah memakai suara ElevenLabs.
+- **Matematika paket gratis (jujur):** paket gratis ElevenLabs memberi
+  **10.000 kredit/bulan** untuk seluruh aplikasi. Di model Flash v2.5
+  (±0,5 kredit/karakter) itu setara ±20.000 karakter — di Multilingual v2
+  (1 kredit/karakter) ±10.000 karakter (±10 menit suara). Satu balasan
+  persona rata-rata ±200 karakter, jadi paket gratis cukup untuk
+  **menguji kualitas suara** (puluhan sampai ±100 balasan), bukan untuk
+  pengguna nyata dalam jumlah banyak.
+- **Lisensi:** paket gratis **tidak termasuk lisensi komersial** —
+  suara yang dihasilkan hanya sah untuk pengujian. Untuk dipakai di
+  produk yang dijual, naik ke paket berbayar ElevenLabs (Starter sudah
+  termasuk lisensi komersial).
+- **Penjaga kredit bawaan:** teks per panggilan dibatasi 800 karakter
+  (dipotong di batas kalimat), rate-limit 30 request/menit/pengguna, dan
+  **batas 3.000 karakter per pengguna per hari (WIB)** — tercatat di
+  tabel `TtsUsage`, hanya untuk generasi yang berhasil. Bila batas
+  tercapai, pengguna otomatis memakai suara browser dan tidak tahu
+  apa-apa selain suaranya kembali seperti biasa.
 
 ## Latihan Lanjutan yang Ditagih (kartu "Latihan Hari Ini" di Beranda)
 

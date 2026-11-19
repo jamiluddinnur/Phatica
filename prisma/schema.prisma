@@ -37,6 +37,7 @@ model User {
   subscription        Subscription?
   sessions            Session[]
   llmUsage            LlmUsage[]
+  ttsUsage            TtsUsage[]
   passwordResetTokens PasswordResetToken[]
   feedbacks           Feedback[]
   createdAt           DateTime             @default(now())
@@ -302,6 +303,21 @@ model LlmUsage {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date      String // yyyy-mm-dd (WIB)
   turns     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+}
+
+// --- Batas pemakaian TTS harian (penghemat kredit ElevenLabs) ---
+// Satu baris per pengguna per hari (yyyy-mm-dd, WIB). Karakter dihitung
+// HANYA saat generasi suara cloud benar-benar berhasil.
+model TtsUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String // yyyy-mm-dd (WIB)
+  chars     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

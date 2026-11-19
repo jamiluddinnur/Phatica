@@ -274,6 +274,19 @@ export default function Home() {
   const speakPrefStoredRef = useRef(false);
   // Suara TTS Bahasa Indonesia terpilih dari speechSynthesis.getVoices().
   const idVoiceRef = useRef<any>(null);
+  // Suara cloud (ElevenLabs): boolean dari /api/auth/me — kunci tidak
+  // pernah sampai ke klien. Bila true, speakPersona mencoba cloud dulu
+  // dan otomatis jatuh ke suara browser bila gagal/kuota habis.
+  const [ttsCloud, setTtsCloud] = useState(false);
+  const ttsCloudRef = useRef(false);
+  const [ttsNote, setTtsNote] = useState("");
+  const cloudAudioRef = useRef<HTMLAudioElement | null>(null);
+  const cloudUrlRef = useRef<string | null>(null);
+  // Penjaga generasi bicara: stopSpeaking menaikkannya, supaya audio
+  // cloud yang datang terlambat (setelah pengguna menghentikan) dibuang.
+  const speakGenRef = useRef(0);
+  // Catatan fallback hanya ditampilkan sekali per sesi latihan.
+  const ttsFallbackNotedRef = useRef(false);
   const [lastVoice, setLastVoice] = useState<{ used: boolean; durationSec: number } | null>(null);
   const voiceStartRef = useRef(0);
   const recogRef = useRef<any>(null);
@@ -440,9 +453,27 @@ export default function Home() {
   // ---- Percakapan Suara: persona berbicara (TTS bawaan browser) ----
   // Murni lapisan tampilan: tidak mengubah logika sesi/evaluasi, dan
   // audio tidak pernah direkam/diunggah.
+  function stopCloudAudio() {
+    const a = cloudAudioRef.current;
+    cloudAudioRef.current = null;
+    if (a) {
+      a.onplay = null; a.onended = null; a.onerror = null;
+      try { a.pause(); } catch { /* abaikan */ }
+    }
+    if (cloudUrlRef.current) { URL.revokeObjectURL(cloudUrlRef.current); cloudUrlRef.current = null; }
+  }
   function stopSpeaking() {
+    speakGenRef.current += 1; // batalkan permintaan suara cloud yang masih berjalan
+    stopCloudAudio();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setPersonaSpeaking(false);
+  }
+  // Catatan fallback cloud → browser: sekali per sesi latihan, tidak
+  // menghalangi (bukan alert).
+  function noteTtsFallback() {
+    if (ttsFallbackNotedRef.current) return;
+    ttsFallbackNotedRef.current = true;
+    setTtsNote("Suara cloud tidak tersedia — memakai suara browser");
   }
   // Satu-satunya jalan mengubah preferensi Suara Persona — state, ref,
   // dan localStorage selalu sinkron. Mematikan = persona langsung diam.
@@ -469,11 +500,46 @@ export default function Home() {
     u.onerror = () => setPersonaSpeaking(false);
     synth.speak(u);
   }
+  // Satu pintu membacakan balasan persona: ElevenLabs (suara cloud) lebih
+  // dulu bila dipasang di server; kegagalan apa pun (respons gagal, kuota
+  // habis, jaringan, audio tidak bisa diputar) → suara browser untuk teks
+  // yang sama. Bila cloud tidak dipasang, langsung suara browser seperti
+  // sebelumnya — tanpa request tambahan.
+  async function speakPersona(text: string) {
+    const clean = (text || "").trim();
+    if (!clean) return;
+    if (!ttsCloudRef.current) { speakText(clean); return; }
+    stopSpeaking(); // potong engine mana pun yang sedang bicara
+    const gen = speakGenRef.current;
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: clean }),
+      });
+      if (!res.ok) throw new Error("tts-cloud");
+      const blob = await res.blob();
+      if (gen !== speakGenRef.current || !speakOnRef.current) return; // sudah dihentikan pengguna
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      cloudAudioRef.current = audio; cloudUrlRef.current = url;
+      audio.onplay = () => setPersonaSpeaking(true);
+      audio.onended = () => { stopCloudAudio(); setPersonaSpeaking(false); };
+      audio.onerror = () => { stopCloudAudio(); setPersonaSpeaking(false); noteTtsFallback(); speakText(clean); };
+      await audio.play();
+    } catch {
+      if (gen !== speakGenRef.current || !speakOnRef.current) return;
+      noteTtsFallback();
+      speakText(clean);
+    }
+  }
   // Bacakan kalimat pembuka persona saat sesi BARU dimulai (mode suara).
   function speakOpening(session: any) {
+    // Sesi latihan baru: catatan fallback suara cloud direset.
+    ttsFallbackNotedRef.current = false; setTtsNote("");
     if (!speakOnRef.current || !session) return;
     const last = (session.messages || []).filter((m: any) => m.role === "persona").pop();
-    if (last) speakText(String(last.content).replace(/^[^:]+:\s*/, ""));
+    if (last) speakPersona(String(last.content).replace(/^[^:]+:\s*/, ""));
   }
   async function loadDiag() {
     try { const r = await api("/api/diagnostic"); setDiag(r.diagnostic || null); setDiagDoneCount(r.doneCount || 0); } catch { /* abaikan */ }
@@ -592,6 +658,7 @@ export default function Home() {
       if (!me.user) { setUser(null); return; }
       setUser(me.user);
       setIsOwner(!!me.isOwner);
+      setTtsCloud(!!me.ttsCloud); ttsCloudRef.current = !!me.ttsCloud;
       const d = await api("/api/dashboard"); setDash(d);
       const s = await api("/api/scenarios"); setScenarios(s.scenarios || []);
       const b = await api("/api/brand/tools"); setBrandTools(b);
@@ -655,7 +722,7 @@ export default function Home() {
       if (r.stage) setCustomStage(r.stage);
       if (typeof r.userTurns === "number") setCustomTurns(r.userTurns);
       const d = await api(`/api/sessions/detail?id=${activeSession.id}`); setSessionDetail(d.session);
-      if (speakOnRef.current) { const last = (d.session.messages || []).filter((m: any) => m.role === "persona").pop(); if (last) speakText(String(last.content).replace(/^[^:]+:\s*/, "")); }
+      if (speakOnRef.current) { const last = (d.session.messages || []).filter((m: any) => m.role === "persona").pop(); if (last) speakPersona(String(last.content).replace(/^[^:]+:\s*/, "")); }
       if (r.maxReached) setMsg(`Kamu sudah memakai ${r.maxTurns} giliran — batas Roleplay Bebas. Akhiri sesi ini untuk melihat evaluasimu.`);
       else if (r.adaptation) setMsg(`Adaptasi: Level ${r.adaptation.fromLevel} → ${r.adaptation.toLevel}. ${r.adaptReason || ""}`);
     } catch (e: any) { setMsg(e.message); }
@@ -1504,7 +1571,7 @@ export default function Home() {
                   <div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button className="btn-ghost" type="button" disabled={busy || paused} onClick={toggleMic} title="Bicara lewat mikrofon — transkripsi di browser, audio tidak diunggah" aria-label={voiceOn ? "Berhenti bicara" : "Bicara lewat mikrofon"}>{voiceOn ? "■ Berhenti Bicara" : "🎤 Bicara"}</button>
-                      <button className="btn-ghost" type="button" onClick={toggleSpeak} aria-pressed={speakOn} aria-label={speakOn ? "Matikan suara persona" : "Nyalakan suara persona"} title="Mode Percakapan Suara — balasan persona dibacakan dengan suara Bahasa Indonesia dari browser">{speakOn ? "🔊 Suara Persona: Nyala" : "🔇 Suara Persona: Mati"}</button>
+                      <button className="btn-ghost" type="button" onClick={toggleSpeak} aria-pressed={speakOn} aria-label={speakOn ? "Matikan suara persona" : "Nyalakan suara persona"} title="Mode Percakapan Suara — balasan persona dibacakan (ElevenLabs bila dipasang, selain itu suara browser)">{speakOn ? "🔊 Suara Persona: Nyala" : "🔇 Suara Persona: Mati"}</button>
                       <input value={chatInput} disabled={paused} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !paused) sendChat(); }} placeholder="Tulis jawabanmu di sini… atau tekan 🎤 Bicara" />
                       <button className="btn" disabled={busy || paused} onClick={sendChat}>Kirim</button>
                       <button className="btn-ghost" type="button" onClick={() => setShowHint(!showHint)} aria-label="Tampilkan atau sembunyikan petunjuk">💡 Petunjuk</button>
@@ -1517,6 +1584,8 @@ export default function Home() {
                     {voiceMsg && <p className="small" style={{ marginTop: 6 }}>{voiceMsg}</p>}
                     {lastVoice && <p className="small" style={{ marginTop: 6 }}>Jawaban suaramu siap dikirim — durasi bicara {Math.round(lastVoice.durationSec)} detik. Kecepatan dan kata pengisi akan dihitung dari transkripsi saat kamu tekan Kirim.</p>}
                     <p className="small" style={{ marginTop: 6 }}>Pengenalan suara diproses oleh browser (di Chrome lewat server Google) — kecepatan tergantung koneksimu. Audio tidak pernah diunggah atau disimpan.</p>
+                    <p className="small" style={{ marginTop: 6 }}>Suara persona memakai ElevenLabs bila dipasang, dan otomatis kembali ke suara browser bila kuota habis.</p>
+                    {ttsNote && <p className="small" style={{ marginTop: 6 }}>{ttsNote}</p>}
                     {(activeSession?.isCustom || sessionDetail.customRoleplay || sessionDetail.customScenario) && (
                       <p className="small" style={{ marginTop: 8 }}>{activeSession?.customScenario || sessionDetail.customScenario ? "Skenarioku" : "Roleplay Bebas"}: giliran {customTurns}/12 · Tahap: {customStage || "Pembuka"}. Kalau sudah 12 giliran, akhiri sesi untuk melihat evaluasimu.</p>
                     )}
