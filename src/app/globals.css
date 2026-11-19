@@ -10,16 +10,19 @@
   --ai:#6366F1; --ai2:#8B5CF6; --good:#10B981; --bad:#E11D48; --soft:#EEF2FF;
   --side:#0F172A; --side-ink:#CBD5E1; --danger:#E11D48;
   --glow:0 0 22px rgba(99,102,241,.45);
+  --glow-v:.06; --glow-g:.04;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#0B1120; --surface:#111A2E; --ink:#E8ECF5; --muted:#94A3B8; --line:#1E2A44;
     --soft:#1B2250; --side:#080D1A;
+    --glow-v:.04; --glow-g:.03;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0B1120; --surface:#111A2E; --ink:#E8ECF5; --muted:#94A3B8; --line:#1E2A44;
   --soft:#1B2250; --side:#080D1A;
+  --glow-v:.04; --glow-g:.03;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
@@ -31,12 +34,15 @@ input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);
 input[type="checkbox"]{width:auto}
 
 /* --- Latar: ikon komunikasi bergeser + radial glow (dari referensi) --- */
-#bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='280' fill='none' stroke='%236366F1' stroke-opacity='.24' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M40 40h90a14 14 0 0 1 14 14v40a14 14 0 0 1-14 14H80l-22 18v-18H40a14 14 0 0 1-14-14V54a14 14 0 0 1 14-14z'/%3E%3Cpath d='M52 66h66M52 82h40'/%3E%3Crect x='290' y='30' width='24' height='46' rx='12'/%3E%3Cpath d='M278 66a24 24 0 0 0 48 0M302 90v20M288 110h28'/%3E%3Cpath d='M200 200v-20M212 210v-40M224 195v-10M236 215v-50M248 200v-20M260 205v-30'/%3E%3Cpath stroke='%238B5CF6' d='M330 190h50a10 10 0 0 1 10 10v22a10 10 0 0 1-10 10h-30l-14 12v-12h-6a10 10 0 0 1-10-10v-22a10 10 0 0 1 10-10z'/%3E%3C/svg%3E");background-size:420px 280px;animation:drift 45s linear infinite}
-#bg::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 500px at 85% 0%,rgba(139,92,246,.18),transparent 60%),radial-gradient(700px 400px at 0 100%,rgba(16,185,129,.10),transparent 60%)}
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='280' fill='none' stroke='%236366F1' stroke-opacity='.08' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M40 40h90a14 14 0 0 1 14 14v40a14 14 0 0 1-14 14H80l-22 18v-18H40a14 14 0 0 1-14-14V54a14 14 0 0 1 14-14z'/%3E%3Cpath d='M52 66h66M52 82h40'/%3E%3Crect x='290' y='30' width='24' height='46' rx='12'/%3E%3Cpath d='M278 66a24 24 0 0 0 48 0M302 90v20M288 110h28'/%3E%3Cpath d='M200 200v-20M212 210v-40M224 195v-10M236 215v-50M248 200v-20M260 205v-30'/%3E%3Cpath stroke='%238B5CF6' d='M330 190h50a10 10 0 0 1 10 10v22a10 10 0 0 1-10 10h-30l-14 12v-12h-6a10 10 0 0 1-10-10v-22a10 10 0 0 1 10-10z'/%3E%3C/svg%3E");background-size:420px 280px;animation:drift 120s linear infinite}
+#bg::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 500px at 85% 0%,rgba(139,92,246,var(--glow-v)),transparent 60%),radial-gradient(700px 400px at 0 100%,rgba(16,185,129,var(--glow-g)),transparent 60%)}
+/* Mode gelap: latar dibuat lebih redup lagi supaya tidak mengganggu konten */
+:root[data-theme="dark"] #bg{opacity:.55}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #bg{opacity:.55}}
 @keyframes drift{to{background-position:-420px 0}}
 
-/* --- Ticker tips --- */
-.mq{display:flex;width:max-content;animation:mq 40s linear infinite}
+/* --- Ticker tips: lambat supaya bisa dibaca (berhenti saat disorot) --- */
+.mq{display:flex;width:max-content;animation:mq 120s linear infinite}
 .mq:hover{animation-play-state:paused}
 .mq span{white-space:nowrap;padding-right:2.5rem;font-size:.85rem}
 @keyframes mq{to{transform:translateX(-50%)}}
