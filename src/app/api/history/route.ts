@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function DELETE() {
   let user; try { user = await requireUser(); } catch { return NextResponse.json({ error: "Login dulu dengan email." }, { status: 401 }); }
   await prisma.$transaction([
+    prisma.feedback.deleteMany({ where: { userId: user.id } }),
     prisma.evaluation.deleteMany({ where: { session: { userId: user.id } } }),
     prisma.adaptationEvent.deleteMany({ where: { session: { userId: user.id } } }),
     prisma.sessionMessage.deleteMany({ where: { session: { userId: user.id } } }),

@@ -17,6 +17,8 @@ export const MESSAGE_MAX_PER_MINUTE = 30;
 export const MESSAGE_WINDOW_MS = 60 * 1000; // 1 menit
 export const CUSTOM_CREATE_MAX_PER_HOUR = 10;
 export const CUSTOM_CREATE_WINDOW_MS = 60 * 60 * 1000; // 1 jam
+export const FEEDBACK_MAX_PER_HOUR = 10;
+export const FEEDBACK_WINDOW_MS = 60 * 60 * 1000; // 1 jam
 
 export const LOGIN_BLOCKED_MESSAGE =
   "Terlalu banyak percobaan, coba lagi 15 menit lagi";

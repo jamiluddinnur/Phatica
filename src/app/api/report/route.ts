@@ -32,7 +32,7 @@ export async function GET() {
     for (const m of vm) { voiceTotal.turns += 1; voiceTotal.words += m.words || 0; voiceTotal.seconds += m.durationSec || 0; voiceTotal.fillers += m.fillers || 0; }
   }
   const voice = voiceTotal.turns > 0
-    ? { turns: voiceTotal.turns, paceWpm: voiceTotal.seconds > 0 ? Math.round((voiceTotal.words / voiceTotal.seconds) * 60) : 0, fillers: voiceTotal.fillers }
+    ? { turns: voiceTotal.turns, paceWpm: voiceTotal.seconds > 0 ? Math.round((voiceTotal.words / voiceTotal.seconds) * 60) : 0, fillers: voiceTotal.fillers, seconds: Math.round(voiceTotal.seconds), fillersPerMin: voiceTotal.seconds > 0 ? Math.round((voiceTotal.fillers / (voiceTotal.seconds / 60)) * 10) / 10 : 0 }
     : null;
   const baseline = diag ? JSON.parse(diag.scores) : null;
   const path = diag ? JSON.parse(diag.path || "[]") : [];

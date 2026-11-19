@@ -9,16 +9,18 @@ dan judul dokumen ("Phatica — AI-Powered Strategic Communication Skills.").
 titik teal di atas, latar indigo gelap. File asli disalin byte-for-byte ke
 `public/logo.webp` (dipakai juga sebagai favicon) — jangan digambar ulang.
 
-**Tampilan:** cerah dan profesional, struktur ala WRTH — latar krem hangat
-#FFFBF5, teks indigo gelap #191641, aksen teal #14B8A6, kartu putih dengan
-bayangan lembut, headline besar, mobile-first. Landing: hero, 3 kolom
-"Latih. Dinilai. Naik Level.", "Semua Latihanmu, di Satu Layar" (dari data
-asli pengguna, honest empty state bila 0 sesi — tanpa testimoni/statistik
-palsu), kartu 5 pilar 13/3/3/5/5 = 29 skenario, FAQ fakta produk, headline
-penutup "WAKTUMU LEBIH BERHARGA DARIPADA TERUS GUGUP SAAT BICARA.", footer
-indigo. Merah hanya untuk sinyal bahaya/error (hapus riwayat, akhiri sesi,
-pola berbahaya, kelemahan berulang, pesan error); tombol "Lanjutkan sesi aktif"
-memakai teal.
+**Tampilan (restyle November 2026 — STANDALONE SAJA, Muse space TIDAK diubah):**
+sidebar gelap (slate #0F172A) dengan 7 nav item + nav pemilik bila OWNER_EMAIL cocok,
+latar #F8FAFC, aksen gradien indigo #6366F1 → violet #8B5CF6, kartu putih radius 14px,
+font Inter (Google Fonts), mode gelap (toggle di Beranda/sidebar, tersimpan di
+localStorage "phatica-theme", default ikut sistem, skrip bootstrap anti-kedip di
+layout.tsx), latar ikon komunikasi yang bergeser pelan + ticker tips dari tip
+skenario asli, seluruh UI berbahasa Indonesia (tagline Inggris "AI-Powered
+Strategic Communication Skills." dipertahankan sesuai pilihan pemilik — satu-satunya
+teks Inggris di UI). Logo teal Monogram P tetap sebagai brand mark
+(`public/logo.webp`), bukan warna aksen. Semua angka di layar berasal dari data
+nyata akun yang login — tidak ada skor/streak/riwayat contoh; kosong = empty state
+yang jujur. Desain lama krem hangat #FFFBF5/teal sudah tidak ada lagi.
 
 Platform latihan komunikasi berbasis **Multi-Agent AI** (bukan video satu arah):
 Roleplay Agent jadi sparring partner, Evaluation Agent menilai dengan rubrik
@@ -328,6 +330,42 @@ dengan mesin rule-based; **Jalur Belajar Tes Awal masih memakai 24
 skenario bawaan** — skenario Skenarioku bisa dimainkan dan dilacak
 (playCount + riwayat), tapi tidak dimasukkan otomatis ke jalur belajar.
 
+## Umpan Balik Pengguna (rating + komentar)
+
+Pengguna bisa memberi penilaian **1–5 bintang + komentar opsional (maks 1000
+karakter)** — setelah sesi selesai (kartu "Beri penilaian untuk sesi ini" di
+bawah laporan evaluasi, jenis `"sesi"`, satu penilaian per sesi) dan tentang
+aplikasi secara umum (bagian "Umpan Balik untuk Phatica" di Pengaturan, jenis
+`"aplikasi"`, plus daftar "Umpan balikmu" milik akun itu sendiri).
+
+**Model:** `Feedback` (id, userId, rating 1–5, comment, kind `"sesi" | "aplikasi"`,
+sessionId nullable, createdAt). Migrasi ketiga
+`prisma/migrations/20261119020315_feedback/migration.sql` (hanya tabel baru —
+migrasi lama tidak disentuh). Validasi + ringkasan di `src/lib/feedback.ts`
+(rating 0/6 ditolak, komentar >1000 ditolak, `isOwnerEmail`, `summarizeFeedback`).
+
+**API:** `POST /api/feedback` (wajib login, rate-limit 10/pengguna/jam,
+satu penilaian per sesi — duplikat ditolak 409) dan `GET /api/feedback` —
+**hanya pemilik**: bila email akun yang login sama dengan env var `OWNER_EMAIL`,
+mengembalikan semua umpan balik (terbaru dulu, dengan nama/email pengguna +
+judul sesi + rata-rata rating + jumlah per bintang); bila `OWNER_EMAIL` kosong
+atau email tidak cocok → 403 "Hanya pemilik aplikasi yang bisa melihat umpan
+balik pengguna." `GET /api/feedback?mine=1` mengembalikan umpan balik milik
+pengguna itu sendiri. Status pemilik dibaca klien dari `/api/auth/me`
+(`{ user, isOwner }`) — **nilai `OWNER_EMAIL` tidak pernah dikirim ke klien**.
+
+**Cara pemilik melihat datanya:** isi `OWNER_EMAIL` di Vercel (Settings →
+Environment Variables → Production, isi email akun pemilik), redeploy, lalu
+masuk dengan akun itu — nav item **"Umpan Balik Pengguna"** (💬) muncul dan
+menampilkan ringkasan (rata-rata, total, distribusi 1–5 bintang) + daftar
+lengkap (nama, email, bintang, komentar, judul sesi, tanggal).
+
+**Privasi:** komentar hanya terlihat oleh pemilik + pengirimnya sendiri, bukan
+oleh pengguna lain (lihat halaman `/privasi`). **Batas yang jujur:** tanpa
+`OWNER_EMAIL`, umpan balik tetap tersimpan di database tapi tidak bisa dilihat
+dari UI mana pun. Tidak ada seed/contoh umpan balik — produksi mulai kosong.
+"Hapus Semua Riwayat & Memori" juga menghapus umpan balik akun itu.
+
 ## Paket Langganan — DISEMBUNYIKAN SEMENTARA
 
 Tombol langganan dan harga **saat ini disembunyikan dari tampilan** (fase
@@ -397,9 +435,10 @@ npx prisma migrate deploy      # Buat tabel dari prisma/migrations/ (database BA
 # Database LAMA yang dulu dibuat via `db push`: baseline dulu, sekali saja:
 #   npx prisma migrate resolve --applied 20261117063029_init
 #   (baru setelah itu `prisma migrate deploy` bisa dipakai di database itu)
-# `migrate deploy` menerapkan KEDUA migrasi: 20261117063029_init (19 tabel)
-# dan 20261118054608_custom_library (CustomPillar, CustomScenario,
-# PracticeSession.customScenarioId — 52 baris, hanya fitur baru).
+# `migrate deploy` menerapkan KETIGA migrasi: 20261117063029_init (19 tabel),
+# 20261118054608_custom_library (CustomPillar, CustomScenario,
+# PracticeSession.customScenarioId — 52 baris, hanya fitur baru), dan
+# 20261119020315_feedback (tabel Feedback — rating + komentar, hanya fitur baru).
 npm run dev                    # http://localhost:3000
 ```
 
@@ -449,8 +488,9 @@ git push -u origin main
    > Vercel CLI / Neon SQL Editor tidak bisa — harus lewat Prisma CLI):
    > `DATABASE_URL="<connection string>" npx prisma migrate resolve --applied 20261117063029_init`
    > Lalu deploy seperti biasa dengan `prisma migrate deploy && npm run build`.
-   > Deploy pertama setelah baseline menerapkan kedua migrasi sekaligus
-   > (init + `20261118054608_custom_library` untuk Skenarioku/Pilarku).
+   > Deploy pertama setelah baseline menerapkan ketiga migrasi sekaligus
+   > (init + `20261118054608_custom_library` untuk Skenarioku/Pilarku +
+   > `20261119020315_feedback` untuk Umpan Balik).
    > Fallback bila baseline tidak mau dilakukan: tetap pakai Build Command
    > lama `npx prisma db push && npm run build` — tabel tetap dibuat/diperbarui
    > dari schema, migrasi hanya tidak tercatat.
@@ -623,26 +663,35 @@ src/lib/llm-usage.ts      # Batas LLM harian 30 giliran/pengguna/hari (WIB) —
                           # sharpenSentence, applyRegister/registerInstruction
 src/lib/diagnostic.ts     # Tes Awal: 3 prompt situasi, scoreDiagnostic (4 dimensi),
                           # buildPath (2 dimensi terlemah → 3 skenario berurutan)
+src/lib/feedback.ts       # Umpan balik: validasi rating 1-5 + komentar maks 1000,
+                          # label bintang, cek pemilik (OWNER_EMAIL, server saja),
+                          # ringkasan rata-rata + distribusi per bintang
 src/lib/plans.ts          # Harga paket Free/Pro/Tim + trial 14 hari +
                           # flag SUBSCRIPTIONS_ENABLED (saat ini false)
 src/lib/auth.ts           # Sesi custom: token acak (hash SHA-256 di DB), cookie httpOnly, 30 hari
 src/lib/password.ts       # Hash scrypt + verifikasi password
 src/lib/prisma.ts         # Prisma client
 src/lib/ensure.ts         # Buat baris Subscription/Memory/BrandProfile (default Free)
-src/app/page.tsx          # Landing + form Masuk/Daftar Email, Beranda (Jalur Belajarmu,
-                          # Latihan Hari Ini, Unduh/Cetak Laporan), Tes Awal,
-                          # Pilih Skenario (pemilih Formal/Santai + tip 2 menit,
-                          # tombol "Duplikasi & Sesuaikan"),
-                          # Skenarioku (Pilar Bawaan + Pilarku, wizard Buat
-                          # Skenario 3 langkah + review, kartu skenario dengan
-                          # Mainkan/Edit/Duplikasi/Hapus),
-                          # Roleplay Bebas (form + template + kartu persona + rubrik,
+src/app/page.tsx          # Landing + form Masuk/Daftar Email, sidebar gelap
+                          # (Beranda, Arena Roleplay, Studio Skenario, Tes Awal,
+                          # Laporan & Radar, Riwayat Latihan, Pengaturan & Profil,
+                          # + "Umpan Balik Pengguna" bila akun pemilik) + mode gelap.
+                          # Beranda (sapaan + streak + 4 kartu stat nyata + ticker
+                          # tips + Jalur Belajarmu + Latihan Hari Ini + kartu skenario),
+                          # Tes Awal, Arena Roleplay (pemilih Formal/Santai + tip
+                          # 2 menit, tombol "Duplikasi & Sesuaikan"), Studio Skenario
+                          # (Skenarioku: Pilar Bawaan + Pilarku, wizard Buat Skenario
+                          # 3 langkah + review, Mainkan/Edit/Duplikasi/Hapus;
+                          # Roleplay Bebas: form + template + kartu persona + rubrik,
                           # tombol "Simpan sebagai skenario" setelah evaluasi),
-                          # Ruang Latihan (mikrofon Web Speech API + dengarkan balasan,
-                          # tip + contoh jawaban), Hasil Evaluasi (suara, kalimat vs
-                          # versi tajam, status drill, register), Memori Saya,
-                          # Personal Branding (tanpa UI langganan — lihat
-                          # bagian Paket Langganan di atas), Laporan Perkembangan
+                          # Ruang Latihan (timer + jeda jujur, mikrofon Web Speech API
+                          # + dengarkan balasan, tip + contoh jawaban), Hasil Evaluasi
+                          # (suara, kalimat vs versi tajam, status drill, register)
+                          # + kartu umpan balik bintang, Riwayat Latihan,
+                          # Pengaturan & Profil (Memori Saya, Ganti Password,
+                          # Personal Branding, Umpan Balik untuk Phatica — tanpa UI
+                          # langganan, lihat bagian Paket Langganan di atas),
+                          # Laporan & Radar (ring skor + radar 5 pilar + Wawasan AI)
 src/app/privasi/page.tsx  # Kebijakan Privasi (statis, Bahasa Indonesia)
 src/app/syarat/page.tsx   # Syarat Layanan (statis, Bahasa Indonesia)
 src/app/api/diagnostic    # Tes Awal: GET (terbaru + progres jalur), POST (3 jawaban → skor + jalur)
@@ -683,6 +732,9 @@ src/app/api/sessions/message?id=  # Balasan persona + adaptasi level; sesi custo
 src/app/api/sessions/end?id=      # Evaluasi 6+ tool + update memori; sesi custom
                           # dinilai dengan rubrik dinamisnya sendiri; membuat Drill
                           # otomatis + menyimpan voiceSummary, sharpened, drillStatus
+src/app/api/feedback      # Umpan balik: POST kirim (login, rate-limit 10/jam,
+                          # 1 penilaian per sesi); GET semua (HANYA pemilik,
+                          # OWNER_EMAIL) atau ?mine=1 (milik sendiri)
 src/app/api/dashboard     # Progres, batas bulan ini, memori, paket
 src/app/api/memory        # Memori + Brand Profile
 src/app/api/brand/*       # Profil brand, Brand Audit, Content Coach
@@ -731,7 +783,7 @@ src/app/api/history       # Hapus semua riwayat & memori
   `db push`) harus di-baseline sekali:** `prisma migrate resolve --applied
   20261117063029_init` — tanpa itu `migrate deploy` gagal karena tabel sudah
   ada. Baseline sekali itu cukup: `migrate deploy` berikutnya menerapkan
-  kedua migrasi sekaligus. Fallback: tetap pakai `npx prisma db push && npm run build`.
+  ketiga migrasi sekaligus. Fallback: tetap pakai `npx prisma db push && npm run build`.
   `npm run build` lokal tetap `prisma generate && next build`.
 - **Security headers:** `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
@@ -742,17 +794,19 @@ src/app/api/history       # Hapus semua riwayat & memori
   + error id pendek yang bisa dikutip pengguna) — tanpa stack trace/rahasia
   di respons.
 - **Tes otomatis:** `npm test` (Node built-in `node:test` + `tsx`, tanpa
-  dependency baru) — 30 tes hijau: scoring/adaptasi AI, skor Tes Awal +
+  dependency baru) — 51 tes hijau: scoring/adaptasi AI, skor Tes Awal +
   jalur belajar, metrik suara, `sharpenSentence` (placeholder, tanpa angka
-  karangan), matematika rate-limit, batas LLM harian, dan logika Skenarioku/
+  karangan), matematika rate-limit, batas LLM harian, logika Skenarioku/
   Pilarku (validasi rubrik 2–4 + dimensi custom maks 1, batas 5 pilar /
   20 skenario, duplikasi skenario bawaan → isian wizard, validasi wizard
-  3 langkah, judul otomatis dari situasi).
+  3 langkah, judul otomatis dari situasi), dan validasi umpan balik
+  (rating 0/6 ditolak, 1–5 diterima, komentar >1000 ditolak, cek pemilik,
+  ringkasan rata-rata + distribusi bintang).
 - **SEO + PWA + a11y:** `sitemap.ts` (`/`, `/privasi`, `/syarat`),
   `robots.ts` (allow all, sitemap dari `NEXT_PUBLIC_SITE_URL` atau fallback
   https://phatica.vercel.app), metadata Open Graph + Twitter card
-  (`/logo.webp`), `public/manifest.webmanifest` (tema #191641 / latar
-  #FFFBF5), `html lang="id"`, `aria-label` di tombol mikrofon, dan gaya
+  (`/logo.webp`), `public/manifest.webmanifest` (tema #6366F1 / latar
+  #F8FAFC), `html lang="id"`, `aria-label` di tombol mikrofon, dan gaya
   `:focus-visible` di `globals.css`.
 
 ## Yang belum / batasan jujur

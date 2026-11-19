@@ -16,12 +16,14 @@ export default function Privasi() {
           <p className="small">Terakhir diperbarui: November 2026.</p>
           <h3>Data apa yang kami simpan</h3>
           <p>Kami menyimpan data yang kamu isi sendiri: nama dan email akunmu, password dalam bentuk hash (bukan teks biasa), riwayat sesi latihan dan transkripnya, memori belajar (kekuatan dan kelemahan berulang), Profil Brand, hasil Tes Awal dan jalur belajarmu, serta latihan 2 menit yang kamu kerjakan.</p>
+          <h3>Umpan balik</h3>
+          <p>Rating dan komentarmu hanya bisa dilihat oleh pemilik aplikasi dan oleh kamu sendiri — bukan oleh pengguna lain. Pemilik melihatnya lewat tab khusus yang hanya muncul di akun pemilik.</p>
           <h3>Data suara</h3>
           <p>Suara kamu tidak pernah direkam atau diunggah ke server kami. Saat kamu memakai tombol mikrofon, yang terjadi adalah transkripsi di browser kamu sendiri — hanya teks hasil transkripsi dan metriknya (durasi, kecepatan kata per menit, jumlah kata pengisi) yang dikirim ke server. Audio tidak pernah meninggalkan perangkatmu.</p>
           <h3>Siapa yang bisa melihat datamu</h3>
           <p>Hanya akunmu sendiri. Data latihan terisolasi per akun dan tidak dibagikan ke pengguna lain. Kami tidak menjual data kamu ke pihak mana pun.</p>
           <h3>Menghapus datamu</h3>
-          <p>Kamu bisa menghapus semua riwayat latihan, evaluasi, memori, dan Profil Brand kapan saja lewat tombol &ldquo;Hapus Semua Riwayat &amp; Memori&rdquo; di tab Memori Saya.</p>
+          <p>Kamu bisa menghapus semua riwayat latihan, evaluasi, memori, dan Profil Brand kapan saja lewat tombol &ldquo;Hapus Semua Riwayat &amp; Memori&rdquo; di Pengaturan &amp; Profil.</p>
           <h3>Penilaian AI</h3>
           <p>Skor dan saran dari Phatica adalah panduan latihan yang dihitung dari transkrip jawabanmu — bukan penilaian profesional, sertifikasi, atau keputusan rekrutmen. Gunakan hasilnya sebagai bahan belajar, bukan sebagai vonis atas kemampuanmu.</p>
           <h3>Pembayaran</h3>

@@ -1,1 +1,18 @@
-{"background_color":"#FFFBF5","description":"Komunikasi Strategis, Dilatih dengan Kecerdasan Buatan. Latihan komunikasi dengan sparring partner AI: roleplay, evaluasi, dan naik level.","display":"standalone","icons":[{"purpose":"any","sizes":"512x512","src":"/logo.webp","type":"image/webp"}],"lang":"id","name":"Phatica — AI-Powered Strategic Communication Skills.","short_name":"Phatica","start_url":"/","theme_color":"#191641"}
+{
+  "background_color": "#F8FAFC",
+  "description": "Komunikasi Strategis, Dilatih dengan Kecerdasan Buatan. Latihan komunikasi dengan sparring partner AI: roleplay, evaluasi, dan naik level.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "/logo.webp",
+      "type": "image/webp"
+    }
+  ],
+  "lang": "id",
+  "name": "Phatica — AI-Powered Strategic Communication Skills.",
+  "short_name": "Phatica",
+  "start_url": "/",
+  "theme_color": "#6366F1"
+}

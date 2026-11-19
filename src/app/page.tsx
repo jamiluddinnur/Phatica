@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TRAITS, CUSTOM_TEMPLATES } from "@/lib/custom-roleplay";
 import { PILLAR_COLORS, PILLAR_ICONS, RUBRIC_DIMENSION_LIBRARY, duplicatePrefillFromScenario, personaCardForCustomScenario, pillarLabelForKey, validateWizardStep } from "@/lib/custom-library";
+import { RATING_LABELS } from "@/lib/feedback";
 
 type User = { id: string; name: string; email: string };
 type Scenario = { id: string; title: string; pillar: string; personaName: string; personaRole: string; context: string; opening: string; goal: string; baseDifficulty: number; durationLabel: string; evaluatorMode: string; fourthLabel: string; rubric: Array<{ key: string; label: string; rubric: string; weight: number }>; verdictHint: string; modelAnswer: string; tip: string };
@@ -28,6 +29,26 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [dash, setDash] = useState<Dash | null>(null);
   const [tab, setTab] = useState("beranda");
+  const [studioSub, setStudioSub] = useState<"skenarioku" | "bebas">("skenarioku");
+  const [isOwner, setIsOwner] = useState(false);
+  // Tema gelap/terang (tersimpan di localStorage "phatica-theme")
+  const [theme, setTheme] = useState("light");
+  // Timer sesi + jeda jujur (timer berhenti saat dijeda, input terkunci)
+  const [elapsed, setElapsed] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const [showHint, setShowHint] = useState(true);
+  // Umpan balik
+  const [myFeedback, setMyFeedback] = useState<any[]>([]);
+  const [ownerFeedback, setOwnerFeedback] = useState<any>(null);
+  const [fbRating, setFbRating] = useState(0);
+  const [fbComment, setFbComment] = useState("");
+  const [fbMsg, setFbMsg] = useState("");
+  const [fbBusy, setFbBusy] = useState(false);
+  const [fbAppRating, setFbAppRating] = useState(0);
+  const [fbAppComment, setFbAppComment] = useState("");
+  const [fbAppMsg, setFbAppMsg] = useState("");
+  const [fbAppBusy, setFbAppBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [pillarFilter, setPillarFilter] = useState("Semua");
@@ -88,7 +109,7 @@ export default function Home() {
   }
   async function doLogout() {
     try { await api("/api/auth/logout", "POST"); } catch { /* abaikan */ }
-    setUser(null); setDash(null); setTab("beranda");
+    setUser(null); setDash(null); setTab("beranda"); setIsOwner(false);
   }
   async function doRegister(e: React.FormEvent) {
     e.preventDefault(); setAuthError(""); setAuthBusy(true);
@@ -134,7 +155,7 @@ export default function Home() {
     setWiz({ step: 1, id: "", pillarKey: "interpersonal", title: pre.title, personaName: pre.personaName, personaRole: pre.personaRole, trait: pre.trait, situation: pre.situation, goal: pre.goal, level: pre.level, openingLine: pre.openingLine, rubricKeys: pre.rubricKeys.length >= 2 ? pre.rubricKeys : ["bukti", "struktur"], customDimension: "", sourceScenarioId: pre.sourceScenarioId });
     setWizReview(false); setWizOpen(true);
     setMsg(`Menduplikasi "${sc.title}" — ubah apa pun di wizard, lalu simpan. Salinan baru dihitung ke batas 20 skenario hanya setelah kamu simpan.${pre.rubricSlotFull ? " Rubrik aslinya sudah 4 dimensi, jadi tidak ada slot kosong — hapus satu dimensi di langkah 3 bila mau menambah dimensimu sendiri." : ""}`);
-    setTab("skenarioku"); loadLibrary();
+    setTab("studio"); setStudioSub("skenarioku"); loadLibrary();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function openWizardEdit(id: string) {
@@ -247,6 +268,23 @@ export default function Home() {
   useEffect(() => {
     setVoiceSupported(typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
   }, []);
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("phatica-theme") : null;
+    const t = saved === "dark" || saved === "light" ? saved : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(t); document.documentElement.dataset.theme = t;
+  }, []);
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next); document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("phatica-theme", next); } catch { /* abaikan */ }
+  }
+  // Timer sesi: mulai dari 0 saat sesi aktif baru dibuka, berhenti saat dijeda/berakhir.
+  useEffect(() => {
+    if (!sessionDetail || sessionDetail.status !== "active") return;
+    setElapsed(0); setPaused(false); pausedRef.current = false;
+    const t = setInterval(() => { if (!pausedRef.current) setElapsed((e) => e + 1); }, 1000);
+    return () => clearInterval(t);
+  }, [sessionDetail?.id, sessionDetail?.status]);
   function toggleMic() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { setVoiceMsg("Browser ini belum mendukung input suara — ketik jawabanmu."); return; }
@@ -327,16 +365,72 @@ export default function Home() {
   const [coachForm, setCoachForm] = useState({ draft: "", platform: "Threads" });
   const [coachResult, setCoachResult] = useState<any>(null);
 
+  // --- Nilai turunan dari DATA NYATA (tidak ada angka karangan) ---
+  const firstName = (user?.name || "").trim().split(" ")[0] || "Kamu";
+  const hourNow = new Date().getHours();
+  const greeting = hourNow < 11 ? "Selamat pagi" : hourNow < 15 ? "Selamat siang" : hourNow < 19 ? "Selamat sore" : "Selamat malam";
+  const levelsObj = (dash?.memory?.levels || {}) as Record<string, number>;
+  const levelValues = Object.values(levelsObj).filter((v) => typeof v === "number");
+  const maxLevel = levelValues.length ? Math.max(...levelValues) : null;
+  const sessionDaySet = new Set((dash?.progress || []).map((p) => String(p.createdAt).slice(0, 10)));
+  let streak = 0;
+  {
+    const d = new Date();
+    const iso = (x: Date) => x.toISOString().slice(0, 10);
+    if (!sessionDaySet.has(iso(d))) d.setDate(d.getDate() - 1);
+    while (sessionDaySet.has(iso(d))) { streak++; d.setDate(d.getDate() - 1); }
+  }
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const sessionsThisWeek = (dash?.recentSessions || []).filter((x) => new Date(x.createdAt).getTime() >= weekAgo).length;
+  const avgScore = dash?.progress?.length ? Math.round(dash.progress.reduce((a, p) => a + (p.overall || 0), 0) / dash.progress.length) : null;
+  const fillerPerMin = report?.voice?.fillersPerMin ?? null;
+  const pillarScores = PILLARS.map((p) => {
+    const items = (dash?.recentSessions || []).filter((x) => x.pillar === p && typeof x.overall === "number");
+    return items.length ? Math.round(items.reduce((a, x) => a + (x.overall || 0), 0) / items.length) : 0;
+  });
+  const diffInfo = (d: number) => d <= 2 ? { label: "Mudah", color: "#10B981" } : d === 3 ? { label: "Sedang", color: "#F59E0B" } : d === 4 ? { label: "Sulit", color: "#F97316" } : { label: "Ahli", color: "#E11D48" };
+  const fmtTime = (sec: number) => String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+  // Ticker: tip NYATA dari skenario (bukan tip demo) — dipendekkan satu baris.
+  const tickerItems = scenarios.map((x) => x.tip.replace(/^Pelajaran 2 menit:\s*/i, "").trim()).filter(Boolean).map((t) => (t.length > 110 ? t.slice(0, 107) + "…" : t));
+  const sessionFeedbackGiven = myFeedback.some((f) => f.sessionId === activeSession?.id);
+  async function loadMyFeedback() {
+    try { const r = await api("/api/feedback?mine=1"); setMyFeedback(r.items || []); } catch { /* abaikan */ }
+  }
+  async function loadOwnerFeedback() {
+    try { const r = await api("/api/feedback"); setOwnerFeedback(r); } catch { setOwnerFeedback(null); }
+  }
+  async function submitSessionFeedback() {
+    if (!activeSession) return;
+    if (fbRating < 1 || fbRating > 5) { setFbMsg("Pilih dulu 1–5 bintang."); return; }
+    setFbBusy(true); setFbMsg("");
+    try {
+      await api("/api/feedback", "POST", { rating: fbRating, comment: fbComment, kind: "sesi", sessionId: activeSession.id });
+      setFbMsg("Terima kasih atas umpan balikmu."); setFbRating(0); setFbComment(""); loadMyFeedback();
+    } catch (e: any) { setFbMsg(e.message); }
+    setFbBusy(false);
+  }
+  async function submitAppFeedback() {
+    if (fbAppRating < 1 || fbAppRating > 5) { setFbAppMsg("Pilih dulu 1–5 bintang."); return; }
+    setFbAppBusy(true); setFbAppMsg("");
+    try {
+      await api("/api/feedback", "POST", { rating: fbAppRating, comment: fbAppComment, kind: "aplikasi" });
+      setFbAppMsg("Terima kasih atas umpan balikmu."); setFbAppRating(0); setFbAppComment(""); loadMyFeedback();
+    } catch (e: any) { setFbAppMsg(e.message); }
+    setFbAppBusy(false);
+  }
   async function loadAll() {
     try {
       const me = await api("/api/auth/me");
       if (!me.user) { setUser(null); return; }
       setUser(me.user);
+      setIsOwner(!!me.isOwner);
       const d = await api("/api/dashboard"); setDash(d);
       const s = await api("/api/scenarios"); setScenarios(s.scenarios || []);
       const b = await api("/api/brand/tools"); setBrandTools(b);
       loadCustoms();
       loadLibrary();
+      loadMyFeedback();
+      loadReport();
       if (b.profile) setBp({ niche: b.profile.niche || "", audience: b.profile.audience || "", values: b.profile.values || "", tone: b.profile.tone || "", credibility: b.profile.credibility || "" });
     } catch { setUser(null); }
   }
@@ -408,6 +502,7 @@ export default function Home() {
   if (!user) {
     return (
       <div>
+        <div id="bg" aria-hidden="true" />
         <header className="top">
           <img className="logo" src="/logo.webp" alt="Logo Phatica" />
           <div><div style={{ fontSize: 22, fontWeight: 800 }}>Phatica</div><div className="tagline">AI-Powered Strategic Communication Skills.</div></div>
@@ -500,25 +595,72 @@ export default function Home() {
   }
 
   const shown = pillarFilter === "Semua" ? scenarios : scenarios.filter((s) => s.pillar === pillarFilter);
+  const NAV_ITEMS: Array<[string, string]> = [
+    ["beranda", "Beranda"],
+    ["arena", "Arena Roleplay"],
+    ["studio", "Studio Skenario"],
+    ["tes", "Tes Awal"],
+    ["laporan", "Laporan & Radar"],
+    ["riwayat", "Riwayat Latihan"],
+    ["pengaturan", "Pengaturan & Profil"],
+  ];
+  if (isOwner) NAV_ITEMS.push(["umpan-balik", "Umpan Balik Pengguna"]);
+  function goTab(v: string) {
+    setTab(v);
+    if (v === "laporan") loadReport();
+    if (v === "beranda") { loadDiag(); loadDrills(); loadReport(); }
+    if (v === "studio") loadLibrary();
+    if (v === "pengaturan") loadMyFeedback();
+    if (v === "umpan-balik") loadOwnerFeedback();
+  }
   return (
-    <div>
-      <header className="top">
-        <img className="logo" src="/logo.webp" alt="Logo Phatica" />
-        <div><div style={{ fontSize: 20, fontWeight: 800 }}>Phatica</div><div className="tagline">AI-Powered Strategic Communication Skills.</div></div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="btn" onClick={() => setTab("skenario")}>Mulai Latihan</button>
-          <span className="small">{user.name || user.email}</span>
-          <button className="btn-ghost" onClick={doLogout}>Keluar</button>
+    <div className="shell">
+      <div id="bg" aria-hidden="true" />
+      <aside className="sidebar">
+        <div className="brandmark">
+          <img className="logo" src="/logo.webp" alt="Logo Phatica" />
+          <span className="word">Phatica</span><span className="tag" style={{ background: "#8B5CF6", color: "#fff" }}>AI</span>
         </div>
-      </header>
-      <div className="wrap">
-        {msg && <div className="card" style={{ marginBottom: 12 }}><pre>{msg}</pre></div>}
-        <div className="tabs">
-          {[["beranda", "Beranda"], ["tes", "Tes Awal"], ["skenario", "Pilih Skenario"], ["skenarioku", "Skenarioku"], ["bebas", "Roleplay Bebas"], ["latihan", "Ruang Latihan"], ["memori", "Memori Saya"], ["branding", "Personal Branding"], ["laporan", "Laporan"]].map(([k, label]) => (
-            <button key={k} className={tab === k ? "on" : ""} onClick={() => { setTab(k); if (k === "laporan") loadReport(); if (k === "beranda") { loadDiag(); loadDrills(); } if (k === "skenarioku") loadLibrary(); }}>{label}</button>
+        {NAV_ITEMS.map(([k, label]) => (
+          <button key={k} className={`nav${tab === k ? " on" : ""}`} onClick={() => goTab(k)}>{label}</button>
+        ))}
+        <div style={{ marginTop: "auto", padding: 12, borderRadius: 12, background: "rgba(255,255,255,.06)", color: "#CBD5E1", fontSize: 13 }}>
+          <div style={{ color: "#fff", fontWeight: 700 }}>{user.name || user.email}</div>
+          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="pill" onClick={toggleTheme} aria-label="Ganti mode gelap atau terang">{theme === "dark" ? "☀️ Mode terang" : "🌙 Mode gelap"}</button>
+            <button className="pill" onClick={doLogout}>Keluar</button>
+          </div>
+        </div>
+      </aside>
+      <main className="main">
+        <div className="mnav">
+          {NAV_ITEMS.map(([k, label]) => (
+            <button key={k} className={`pill${tab === k ? " on" : ""}`} onClick={() => goTab(k)}>{label}</button>
           ))}
         </div>
+        <div className="wrap">
+          {msg && <div className="card" style={{ marginBottom: 12 }}><pre>{msg}</pre></div>}
 
+        {tab === "beranda" && dash && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <h1 style={{ fontSize: 26, margin: "0 0 4px" }}>{greeting}, {firstName}</h1>
+                <p className="mut" style={{ margin: 0 }}>{dash.memory?.lastRecap || "Mulai Tes Awal dulu, lalu ikuti Jalur Belajarmu."}</p>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                {maxLevel !== null && <span className="tag">Level {maxLevel}</span>}
+                {streak > 0 ? <span className="card" style={{ padding: "6px 12px", fontSize: 14, fontWeight: 700 }}>🔥 Streak {streak} hari</span> : <span className="card" style={{ padding: "6px 12px", fontSize: 14 }}>Belum ada streak — mulai sesi pertamamu</span>}
+                <button className="btn-ghost" onClick={toggleTheme} aria-label="Ganti mode gelap atau terang">{theme === "dark" ? "☀️ Mode terang" : "🌙 Mode gelap"}</button>
+              </div>
+            </div>
+            {tickerItems.length > 0 && (
+              <div className="card" style={{ marginTop: 16, overflow: "hidden", padding: "10px 0" }} aria-label="Tips latihan">
+                <div className="mq">{[...tickerItems, ...tickerItems].map((t, i) => (<span key={i}>💡 {t}</span>))}</div>
+              </div>
+            )}
+          </div>
+        )}
         {tab === "beranda" && dash && (
           <div className="grid">
             <div className="card">
@@ -531,11 +673,11 @@ export default function Home() {
                 <div><b>Naik Level.</b><p className="small">Adaptasi level 1–5 dengan alasan tercatat.</p></div>
               </div>
             </div>
-            <div className="grid g3">
-              <div className="card"><div className="small">Skor rata-rata</div><div className="stat">{dash.progress.length ? Math.round(dash.progress.reduce((a, p) => a + (p.overall || 0), 0) / dash.progress.length) : "—"}</div><p className="small">{dash.progress.length} sesi selesai</p></div>
-              <div className="card"><div className="small">Simulasi bulan ini</div><div className="stat">{dash.usedThisMonth}</div>
-                <p className="small">Semua skenario bisa dicoba.</p></div>
-              <div className="card"><div className="small">Sesi terakhir</div><p>{dash.memory?.lastRecap || "Belum ada sesi. Mulai dari Pilih Skenario."}</p></div>
+            <div className="grid g4">
+              <div className="card"><div className="small">Skor rata-rata</div><div className="stat">{avgScore !== null ? avgScore : "—"}</div><p className="small">{dash.progress.length ? `${dash.progress.length} sesi selesai` : "Belum ada sesi — mulai Tes Awal dulu"}</p></div>
+              <div className="card"><div className="small">Sesi minggu ini</div><div className="stat">{sessionsThisWeek}</div><p className="small">7 hari terakhir</p></div>
+              <div className="card"><div className="small">Kata pengisi / menit</div><div className="stat">{fillerPerMin !== null ? fillerPerMin : "—"}</div><p className="small">{fillerPerMin !== null ? "Dari transkripsi suaramu" : "Belum ada jawaban suara"}</p></div>
+              <div className="card"><div className="small">Total giliran bicara</div><div className="stat">{dash.memory?.totalTurns ?? 0}</div><p className="small">Dari semua sesimu</p></div>
             </div>
             <div className="card"><h3 style={{ marginTop: 0 }}>Tren skor</h3>
               {dash.progress.length === 0 ? <p className="small">Belum ada data — selesaikan satu sesi latihan dulu.</p> :
@@ -543,7 +685,7 @@ export default function Home() {
             </div>
             <div className="card"><h3 style={{ marginTop: 0 }}>Sesi terakhir</h3>
               {dash.recentSessions.length === 0 ? <p className="small">Belum ada sesi.</p> :
-                dash.recentSessions.map((s) => (<div key={s.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span><b>{s.displayTitle || s.scenarioId}</b> · {s.pillar} · Level {s.level} · {s.status}{s.overall !== null ? ` · Skor ${s.overall}` : ""}</span>{s.customized ? <span className="badge warn">Disesuaikan olehmu</span> : s.customScenarioId ? <span className="badge info">Skenarioku</span> : s.customRoleplayId ? <span className="badge info">Roleplay Bebas</span> : <span className="badge info">Skenario asli</span>}{s.status === "active" && <button className="btn" disabled={busy} onClick={() => resumeSession(s)}>Lanjutkan sesi aktif →</button>}</div>))}
+                dash.recentSessions.map((s) => (<div key={s.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span><b>{s.displayTitle || s.scenarioId}</b> · {s.pillar} · Level {s.level} · {s.status}{s.overall !== null ? ` · Skor ${s.overall}` : ""}</span>{s.customized ? <span className="badge warn">Disesuaikan olehmu</span> : s.customScenarioId ? <span className="badge info">Skenarioku</span> : s.customRoleplayId ? <span className="badge info">Roleplay Bebas</span> : <span className="badge info">Skenario asli</span>}{s.status === "active" && <button className="btn" disabled={busy} onClick={() => resumeSession(s)}>Lanjutkan sesi aktif →</button>}</div>))}
             </div>
           </div>
         )}
@@ -563,7 +705,7 @@ export default function Home() {
                   <p className="small"><b>Yang paling perlu dilatih:</b> {diag.weakest.map((w: string) => ({ bukti: "Bukti", struktur: "Struktur", empati: "Empati", ketegasan: "Ketegasan" } as any)[w] || w).join(" dan ")}</p>
                   <p className="small">Aturan &ldquo;sudah bisa&rdquo; yang jujur: skor ≥75 pada dimensi terlemahmu di 2 sesi — bukan janji lolos, tapi tanda kamu sudah konsisten.</p>
                   {diag.path.map((it: any, i: number) => (
-                    <div key={it.scenarioId} style={{ padding: "8px 0", borderBottom: "1px solid #eee", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div key={it.scenarioId} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <span><b>{i + 1}. {it.title}</b> <span className="small">— melatih {it.dimension}</span></span>
                       {it.done ? <span className="badge info">✓ Selesai</span> : <button className="btn" disabled={busy} onClick={() => { const sc = scenarios.find((x) => x.id === it.scenarioId); if (sc) startScenario(sc); }}>Mulai</button>}
                     </div>
@@ -578,7 +720,7 @@ export default function Home() {
               {drillsPending.length === 0 ? (
                 <p className="small">{drillsDone.length === 0 ? "Belum ada latihan — selesaikan satu sesi dulu, latihan 2 menitnya akan muncul di sini besok." : "Tidak ada latihan yang menunggu. Bagus — latihan terakhirmu sudah selesai."}</p>
               ) : drillsPending.map((d) => (
-                <div key={d.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
+                <div key={d.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
                   <p className="small" style={{ margin: "0 0 6px" }}><b>Latihan 2 menit</b> — dari sesi terakhirmu. Blind spot: {d.blindSpot}</p>
                   <p style={{ margin: "0 0 8px" }}>{d.text}</p>
                   <textarea rows={2} value={drillAttempts[d.id] || ""} onChange={(e) => setDrillAttempts({ ...drillAttempts, [d.id]: e.target.value })} placeholder="Tulis jawaban latihanmu di sini…" />
@@ -590,11 +732,35 @@ export default function Home() {
               )}
               <p className="small">Latihan ini hanya ada di aplikasi — belum ada pengingat email.</p>
             </div>
+            <div className="card">
+              <h3 style={{ marginTop: 0 }}>Pilih keterampilan untuk dilatih</h3>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {["Semua", ...PILLARS].map((p) => (<button key={p} className={`pill${pillarFilter === p ? " on" : ""}`} onClick={() => setPillarFilter(p)}>{p}</button>))}
+              </div>
+              {shown.length === 0 ? <p className="small">Belum ada skenario di pilar ini.</p> : (
+                <div className="grid g2">
+                  {shown.slice(0, 8).map((sc) => {
+                    const d = diffInfo(sc.baseDifficulty);
+                    return (
+                      <div key={sc.id} className="card" style={{ padding: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span className="tag">{sc.pillar}</span><span style={{ fontSize: 12, fontWeight: 700, color: d.color }}>{d.label}</span></div>
+                        <h3 style={{ margin: "10px 0 6px" }}>{sc.title}</h3>
+                        <p className="small" style={{ margin: "0 0 10px" }}>{sc.personaName} — {sc.personaRole}</p>
+                        <button className="btn" disabled={busy} onClick={() => startScenario(sc)}>Mulai Latihan</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {shown.length > 8 && <p className="small" style={{ marginTop: 12 }}>Menampilkan 8 dari {shown.length} skenario — <button className="btn-ghost" type="button" onClick={() => goTab("arena")}>lihat semua di Arena Roleplay</button></p>}
+            </div>
           </div>
         )}
 
-        {tab === "skenario" && (
+        {tab === "arena" && (
           <div>
+            <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Arena Roleplay AI</h1>
+            <p className="mut" style={{ margin: "0 0 16px" }}>Pilih skenario bawaan atau buat sendiri di Studio Skenario.</p>
             <div className="tabs">{["Semua", ...PILLARS].map((p) => (<button key={p} className={pillarFilter === p ? "on" : ""} onClick={() => setPillarFilter(p)}>{p}</button>))}</div>
             <p className="small">{scenarios.length} skenario · Semua pilar bisa dicoba.</p>
             <div className="card" style={{ marginBottom: 12 }}>
@@ -607,7 +773,7 @@ export default function Home() {
             <div className="grid g2">
               {shown.map((sc) => (
                 <div key={sc.id} className="card">
-                  <span className="tag">{sc.pillar}</span> <span className="badge info">Level dasar {sc.baseDifficulty}</span> <span className="badge warn">{sc.evaluatorMode}</span> <span className="badge info">Skenario asli</span>
+                  <span className="tag">{sc.pillar}</span> {(() => { const d = diffInfo(sc.baseDifficulty); return <span style={{ fontSize: 12, fontWeight: 700, color: d.color }}>{d.label}</span>; })()} <span className="badge warn">{sc.evaluatorMode}</span> <span className="badge info">Skenario asli</span>
                   <h3>{sc.title}</h3>
                   <p className="small">{sc.context}</p>
                   <p><b>{sc.personaName}</b> — {sc.personaRole}</p>
@@ -620,10 +786,24 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            <div className="card" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div><b>Butuh yang spesifik?</b><div className="mut" style={{ fontSize: 14 }}>Tentukan sendiri lawan bicara, situasi, dan tujuanmu.</div></div>
+              <button className="btn" onClick={() => { setTab("studio"); setStudioSub("bebas"); }}>Buka Studio Skenario</button>
+            </div>
           </div>
         )}
 
-        {tab === "skenarioku" && (
+        {tab === "studio" && (
+          <div style={{ marginBottom: 12 }}>
+            <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Studio Skenario</h1>
+            <p className="mut" style={{ margin: "0 0 12px" }}>Skenario buatanmu dan Roleplay Bebas — semuanya milikmu, privat per akun.</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className={`pill${studioSub === "skenarioku" ? " on" : ""}`} onClick={() => setStudioSub("skenarioku")}>Skenarioku</button>
+              <button className={`pill${studioSub === "bebas" ? " on" : ""}`} onClick={() => setStudioSub("bebas")}>Roleplay Bebas</button>
+            </div>
+          </div>
+        )}
+        {tab === "studio" && studioSub === "skenarioku" && (
           <div className="grid">
             <div className="card">
               <h2 style={{ marginTop: 0 }}>Skenarioku — Perpustakaan Latihanmu</h2>
@@ -634,11 +814,11 @@ export default function Home() {
                 <button className="btn-ghost" disabled={busy || myPillars.length >= 5} onClick={() => { setEditingPillar(null); setPillarForm({ name: "", description: "", color: PILLAR_COLORS[0], icon: "chat" }); setShowPillarForm(!showPillarForm); }}>{showPillarForm ? "Tutup Form Pilar" : "+ Buat Pilar"}</button>
               </div>
               {library.length === 0 && !wizOpen && (
-                <div className="card" style={{ background: "#f0fdfa", marginTop: 16 }}>
+                <div className="card" style={{ background: "var(--soft)", marginTop: 16 }}>
                   <b>Belum ada skenario buatanmu — mulai dari template, duplikasi skenario bawaan, atau buat dari nol.</b>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                    <button className="btn-ghost" onClick={() => setTab("bebas")}>Mulai dari template Roleplay Bebas</button>
-                    <button className="btn-ghost" onClick={() => setTab("skenario")}>Duplikasi skenario bawaan</button>
+                    <button className="btn-ghost" onClick={() => { setTab("studio"); setStudioSub("bebas"); }}>Mulai dari template Roleplay Bebas</button>
+                    <button className="btn-ghost" onClick={() => setTab("arena")}>Duplikasi skenario bawaan</button>
                     <button className="btn" disabled={busy} onClick={openWizardNew}>Buat dari nol</button>
                   </div>
                 </div>
@@ -653,7 +833,7 @@ export default function Home() {
                   <label className="small">Warna</label>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "6px 0 12px" }}>
                     {PILLAR_COLORS.map((c) => (
-                      <button key={c} type="button" onClick={() => setPillarForm({ ...pillarForm, color: c })} aria-label={`Warna ${c}`} style={{ width: 32, height: 32, borderRadius: "50%", background: c, border: pillarForm.color === c ? "3px solid #191641" : "1px solid #ddd", cursor: "pointer" }} />
+                      <button key={c} type="button" onClick={() => setPillarForm({ ...pillarForm, color: c })} aria-label={`Warna ${c}`} style={{ width: 32, height: 32, borderRadius: "50%", background: c, border: pillarForm.color === c ? "3px solid #6366F1" : "1px solid #ddd", cursor: "pointer" }} />
                     ))}
                   </div>
                   <label className="small">Ikon</label>
@@ -689,7 +869,7 @@ export default function Home() {
                 <h3 style={{ marginTop: 0 }}>{wiz.id ? `Edit Skenario — “${wiz.title}”` : "Buat Skenario — 3 Langkah"}</h3>
                 <p className="small">Langkah {wiz.step} dari 3: {wiz.step === 1 ? "Siapa lawan bicaramu?" : wiz.step === 2 ? "Situasi & tujuanmu" : "Cara dinilai"}</p>
                 <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                  {[1, 2, 3].map((n) => (<div key={n} style={{ flex: 1, height: 6, borderRadius: 3, background: wiz.step >= n ? "#14B8A6" : "#e5e7eb" }} />))}
+                  {[1, 2, 3].map((n) => (<div key={n} style={{ flex: 1, height: 6, borderRadius: 3, background: wiz.step >= n ? "#6366F1" : "#e5e7eb" }} />))}
                 </div>
                 {wiz.step === 1 && (
                   <div>
@@ -737,7 +917,7 @@ export default function Home() {
                     {RUBRIC_DIMENSION_LIBRARY.map((d) => {
                       const on = wiz.rubricKeys.includes(d.key);
                       return (
-                        <label key={d.key} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 0", borderBottom: "1px solid #f3f4f6" }}>
+                        <label key={d.key} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
                           <input type="checkbox" checked={on} onChange={() => {
                             const next = on ? wiz.rubricKeys.filter((k) => k !== d.key) : [...wiz.rubricKeys, d.key];
                             setWiz({ ...wiz, rubricKeys: next });
@@ -755,7 +935,7 @@ export default function Home() {
                   const card = (() => { try { return personaCardForCustomScenario({ personaName: wiz.personaName, personaRole: wiz.personaRole, trait: wiz.trait as any, situation: wiz.situation, openingLine: wiz.openingLine }); } catch { return null; } })();
                   const chosen = RUBRIC_DIMENSION_LIBRARY.filter((d) => wiz.rubricKeys.includes(d.key));
                   return (
-                    <div className="card" style={{ background: "#f0fdfa" }}>
+                    <div className="card" style={{ background: "var(--soft)" }}>
                       <h3 style={{ marginTop: 0 }}>Cek Terakhir — Kartu Persona &amp; Rubrik</h3>
                       <p><b>{card?.personaName}</b> — {card?.personaRole} · Sifat: {card?.trait}</p>
                       <p className="small"><b>Yang dia mau:</b> {card?.personaGoal}</p>
@@ -790,7 +970,7 @@ export default function Home() {
                 const key = pillarKey(p);
                 const items = library.filter((s) => s.pillarKey === key);
                 return (
-                  <div key={key} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
+                  <div key={key} style={{ padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
                     <b>{p}</b> <span className="badge info">bawaan</span> <span className="small">· {items.length} skenario buatanmu</span>
                     {items.map((s) => (
                       <div key={s.id} style={{ padding: "8px 0 8px 12px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -813,7 +993,7 @@ export default function Home() {
               ) : myPillars.map((p: any) => {
                 const items = library.filter((s) => s.pillarKey === `custom:${p.id}`);
                 return (
-                  <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
+                  <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
                     <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: p.color, verticalAlign: "middle", marginRight: 6 }} />
                     <b>{p.name}</b> <span className="small">· {p.icon}{p.description ? ` — ${p.description}` : ""}</span> <span className="small">· {items.length} skenario</span>
                     <span style={{ marginLeft: 8 }}>
@@ -836,12 +1016,12 @@ export default function Home() {
           </div>
         )}
 
-        {tab === "bebas" && (
+        {tab === "studio" && studioSub === "bebas" && (
           <div className="grid">
             <div className="card">
               <h2 style={{ marginTop: 0 }}>Roleplay Bebas — Skenario Buatanmu</h2>
               {customSource && (
-                <div className="card" style={{ background: "#f0fdfa", marginBottom: 12 }}>
+                <div className="card" style={{ background: "var(--soft)", marginBottom: 12 }}>
                   <b>Menyesuaikan skenario: {customSource.title}</b>
                   <p className="small" style={{ marginBottom: 0 }}>Form di bawah sudah terisi dari skenario aslinya. Ubah apa pun — nama, situasi (mis. ganti perusahaan/posisi yang dilamar), tujuan, level, sifat — lalu buat versimu. <button className="btn-ghost" type="button" onClick={() => { setCustomSource(null); setCustomForm({ personaName: "", personaRole: "", trait: "Skeptis", situation: "", goal: "", level: 3 }); setCustomPreview(null); }}>Batalkan penyesuaian, buat dari nol</button></p>
                 </div>
@@ -912,7 +1092,7 @@ export default function Home() {
               <div className="card">
                 <h3 style={{ marginTop: 0 }}>Skenario buatanmu sebelumnya</h3>
                 {myCustoms.map((c) => (
-                  <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <span><b>{c.personaCard.personaName}</b> — {c.personaCard.personaRole} · {c.trait} · Level {c.level}</span>
                     {c.customized ? <span className="badge warn">Disesuaikan olehmu</span> : <span className="badge info">Roleplay Bebas</span>}
                     <button className="btn" disabled={busy} onClick={() => startCustom(c.id)}>Mulai Latihan</button>
@@ -961,6 +1141,46 @@ export default function Home() {
               <p>Belum ada data — selesaikan Tes Awal dan 1 sesi dulu, laporanmu akan muncul di sini.</p>
             ) : (
               <div>
+                {(() => {
+                  const latestOverall = report.trend.length ? report.trend[report.trend.length - 1].overall : null;
+                  const dimLabels: Record<string, string> = { bukti: "Bukti", struktur: "Struktur", empati: "Empati", ketegasan: "Ketegasan" };
+                  const dims = Object.entries(report.now || {}).map(([k, v]) => ({ key: k, label: dimLabels[k] || (k.charAt(0).toUpperCase() + k.slice(1)), score: v as number }));
+                  const ringOff = latestOverall !== null ? 327 - (327 * latestOverall) / 100 : 327;
+                  const radarPt = (i: number, v: number) => { const a = ((i * 72 - 90) * Math.PI) / 180; return `${150 + 85 * (v / 100) * Math.cos(a)},${110 + 85 * (v / 100) * Math.sin(a)}`; };
+                  const radarPts = pillarScores.map((v, i) => radarPt(i, v)).join(" ");
+                  return (
+                    <div>
+                      <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Radar Kemampuan &amp; Laporan</h1>
+                      <p className="mut" style={{ margin: "0 0 16px" }}>Skor dan radar dihitung dari sesi dan Tes Awalmu sendiri — bukan data contoh.</p>
+                      <div className="grid g2" style={{ marginBottom: 16 }}>
+                        <div className="card" style={{ textAlign: "center" }}>
+                          <svg viewBox="0 0 120 120" style={{ width: 176, margin: "0 auto" }}><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" strokeWidth="10" /><circle cx="60" cy="60" r="52" fill="none" stroke="var(--good)" strokeWidth="10" strokeLinecap="round" strokeDasharray="327" strokeDashoffset={ringOff} transform="rotate(-90 60 60)" /><text x="60" y="64" textAnchor="middle" fontSize="30" fontWeight="700" fill="var(--ink)">{latestOverall !== null ? latestOverall : "—"}</text><text x="60" y="80" textAnchor="middle" fontSize="9" fill="var(--muted)">dari 100</text></svg>
+                          <div style={{ fontWeight: 700, marginTop: 8 }}>{latestOverall !== null ? "Skor sesi terakhirmu" : "Belum ada skor — selesaikan satu sesi dulu"}</div>
+                          <div style={{ textAlign: "left", marginTop: 16 }}>
+                            {dims.length === 0 ? <p className="small">Belum ada skor per dimensi.</p> : dims.map((d) => (<div key={d.key} style={{ marginBottom: 10 }}><div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}><span>{d.label}</span><b>{d.score}</b></div><div className="bar" style={{ marginTop: 4 }}><div style={{ width: `${d.score}%` }} /></div></div>))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="card" style={{ marginBottom: 16 }}>
+                            <h3 style={{ marginTop: 0 }}>Wawasan AI</h3>
+                            <p style={{ fontSize: 14, margin: "0 0 8px" }}><b>Kekuatan:</b> {report.strengths || "—"}</p>
+                            <p style={{ fontSize: 14, margin: "0 0 8px" }}><b>Yang perlu dilatih:</b> {report.weaknesses || "—"}</p>
+                            {report.lastRecap && <p style={{ fontSize: 14, margin: 0 }}><b>Rekap terakhir:</b> {report.lastRecap}</p>}
+                          </div>
+                          <div className="card">
+                            <h3 style={{ marginTop: 0 }}>Radar Kemampuan</h3>
+                            <svg viewBox="0 0 300 220" style={{ width: "100%", maxWidth: 420, margin: "0 auto", display: "block" }}>
+                              <g fill="none" stroke="var(--line)"><polygon points="150,25 235,95 202,195 98,195 65,95" /><polygon points="150,68 193,102 176,153 124,153 107,102" /></g>
+                              <polygon points={radarPts} fill="rgba(99,102,241,.25)" stroke="#6366F1" strokeWidth="2" />
+                              {PILLARS.map((p, i) => { const a = ((i * 72 - 90) * Math.PI) / 180; return (<text key={p} x={150 + 108 * Math.cos(a)} y={110 + 108 * Math.sin(a)} fontSize="10" fill="var(--ink)" textAnchor="middle">{p} {pillarScores[i]}</text>); })}
+                            </svg>
+                            <p className="small" style={{ marginTop: 8 }}>{pillarScores.every((v) => v === 0) ? "Belum ada sesi di pilar mana pun — radar akan terisi setelah kamu berlatih." : "Pilar tanpa sesi ditampilkan 0 — bukan skor, tapi tanda belum ada sesi di pilar itu."}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                   <button className="btn" onClick={() => window.print()}>Cetak / Simpan sebagai PDF</button>
                   <button className="btn-ghost" onClick={() => {
@@ -1008,16 +1228,75 @@ export default function Home() {
           </div>
         )}
 
+        {tab === "riwayat" && dash && (
+          <div>
+            <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Riwayat Latihan</h1>
+            <p className="mut" style={{ margin: "0 0 16px" }}>Semua sesi latihanmu, dari data akunmu sendiri.</p>
+            {dash.recentSessions.length === 0 ? (
+              <div className="card"><p>Belum ada sesi — mulai Tes Awal dulu atau pilih skenario di Arena Roleplay.</p></div>
+            ) : (
+              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                {dash.recentSessions.map((x) => (
+                  <div key={x.id} style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ fontWeight: 700 }}>{x.displayTitle || x.scenarioId}</div>
+                      <div className="small">{x.pillar} · Level {x.level} · {new Date(x.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
+                    </div>
+                    <span className="small">{x.status === "active" ? "Aktif" : "Selesai"}</span>
+                    {x.overall !== null && x.overall !== undefined && <b>Skor {x.overall}</b>}
+                    <button className="btn-ghost" disabled={busy} onClick={() => resumeSession(x)}>{x.status === "active" ? "Lanjutkan" : "Lihat Laporan"}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "umpan-balik" && isOwner && (
+          <div>
+            <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Umpan Balik Pengguna</h1>
+            <p className="mut" style={{ margin: "0 0 16px" }}>Hanya kamu (pemilik aplikasi) yang bisa melihat halaman ini.</p>
+            {!ownerFeedback ? <p className="small">Memuat…</p> : ownerFeedback.items.length === 0 ? (
+              <div className="card"><p>Belum ada umpan balik masuk.</p></div>
+            ) : (
+              <div>
+                <div className="grid g3" style={{ marginBottom: 16 }}>
+                  <div className="card"><div className="small">Rata-rata rating</div><div className="stat">{ownerFeedback.summary.average !== null ? ownerFeedback.summary.average : "—"}</div><p className="small">dari 5</p></div>
+                  <div className="card"><div className="small">Total umpan balik</div><div className="stat">{ownerFeedback.summary.total}</div><p className="small">semua pengguna</p></div>
+                  <div className="card"><div className="small">Distribusi bintang</div>{[5, 4, 3, 2, 1].map((nn) => (<div key={nn} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginTop: 4 }}><span style={{ width: 28 }}>{nn}★</span><div className="bar" style={{ flex: 1 }}><div style={{ width: `${ownerFeedback.summary.total ? (ownerFeedback.summary.distribution[nn] / ownerFeedback.summary.total) * 100 : 0}%` }} /></div><b>{ownerFeedback.summary.distribution[nn]}</b></div>))}</div>
+                </div>
+                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                  {ownerFeedback.items.map((f: any) => (
+                    <div key={f.id} style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}><b>{f.userName || f.userEmail}</b><span className="small">{f.userEmail}</span><span>{"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}</span><span className="small">{f.kind === "sesi" ? `Sesi: ${f.sessionTitle || "—"}` : "Tentang aplikasi"}</span><span className="small">{new Date(f.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span></div>
+                      {f.comment && <p style={{ margin: "6px 0 0", fontSize: 14 }}>{f.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === "latihan" && (
           <div>
             {!sessionDetail ? <div className="card"><p>Belum ada sesi aktif. Pilih skenario dulu di tab <b>Pilih Skenario</b>.</p></div> : (
               <div className="grid">
                 <div className="card">
-                  <b>{activeSession?.scenario?.title || sessionDetail.scenarioId}</b> · Level {sessionDetail.level} · Status {sessionDetail.status}
+                  <b>{activeSession?.scenario?.title || sessionDetail.scenarioId}</b> · Level {sessionDetail.level} · Status {sessionDetail.status === "active" ? "Aktif" : "Selesai"}
                   {(activeSession?.customRoleplay?.sourceScenarioId || sessionDetail.customRoleplay?.sourceScenarioId) && <span> <span className="badge warn">Disesuaikan olehmu</span></span>}
                   {customStage && (
                     <span> · <span className="badge info">Tahap: {customStage}</span>{(activeSession?.isCustom || sessionDetail.customRoleplay) && <span> <span className="badge warn">Giliran {customTurns}/12</span></span>}</span>
                   )}
+                  <p className="small" style={{ margin: "6px 0 0" }}>Lawan bicara: <b>{activeSession?.scenario?.personaName || activeSession?.customRoleplay?.personaCard?.personaName || "—"}</b>{(activeSession?.scenario?.personaRole || activeSession?.customRoleplay?.personaCard?.personaRole) ? ` — ${activeSession?.scenario?.personaRole || activeSession?.customRoleplay?.personaCard?.personaRole}` : ""}</p>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                    <span><span className="small">Waktu sesi: </span><b style={{ fontSize: 20 }}>{fmtTime(elapsed)}</b></span>
+                    {sessionDetail.status === "active" && (
+                      <button className="btn-ghost" type="button" onClick={() => { const nx = !paused; setPaused(nx); pausedRef.current = nx; }} aria-label={paused ? "Lanjutkan sesi" : "Jeda sesi"}>{paused ? "▶ Lanjutkan" : "⏸ Jeda"}</button>
+                    )}
+                    {voiceOn && (<div className="wave" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => (<i key={i} style={{ animationDelay: `${(i * 70) % 900}ms` }} />))}</div>)}
+                    {paused && <span className="small">Sesi dijeda — timer berhenti dan jawaban tidak bisa dikirim sampai kamu tekan Lanjutkan.</span>}
+                  </div>
                   <p className="small">{activeSession?.scenario?.goal || ""}</p>
                   <p className="small">Mode evaluator: {activeSession?.scenario?.evaluatorMode || ""} · Rubrik: {(activeSession?.scenario?.rubric || []).map((r: any) => r.label).join(", ")}</p>
                   {lastEngine && (
@@ -1027,23 +1306,24 @@ export default function Home() {
                     <p className="small" style={{ background: "#fef3c7", padding: "8px 10px", borderRadius: 8 }}>{llmNotice}</p>
                   )}
                 </div>
-                {activeSession?.scenario?.tip && sessionDetail.status === "active" && (
-                  <div className="card" style={{ background: "#f0fdfa" }}>
+                {showHint && activeSession?.scenario?.tip && sessionDetail.status === "active" && (
+                  <div className="card" style={{ background: "var(--soft)" }}>
                     <b>Pelajaran 2 menit sebelum mulai</b>
                     <p className="small" style={{ marginBottom: 6 }}>{activeSession.scenario.tip}</p>
                     <details><summary className="small">Lihat contoh jawaban yang bagus</summary><p className="small"><i>“{activeSession.scenario.modelAnswer}”</i></p><p className="small">Kenapa bagus: ada bukti dan angka, strukturnya jelas, dan ditutup dengan langkah berikutnya — bukan sekadar klaim.</p></details>
                   </div>
                 )}
-                <div className="chat">
+                <div className="chat" aria-live="polite">
                   {(sessionDetail.messages || []).map((m: any, i: number) => (<div key={i} className={`msg ${m.role === "user" ? "user" : "persona"}`}><pre>{m.content}</pre></div>))}
                 </div>
                 {sessionDetail.status === "active" && (
                   <div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button className="btn-ghost" type="button" disabled={busy} onClick={toggleMic} title="Bicara lewat mikrofon — transkripsi di browser, audio tidak diunggah" aria-label={voiceOn ? "Berhenti bicara" : "Bicara lewat mikrofon"}>{voiceOn ? "■ Berhenti Bicara" : "🎤 Bicara"}</button>
-                      <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendChat(); }} placeholder="Tulis jawabanmu di sini… atau tekan 🎤 Bicara" />
-                      <button className="btn" disabled={busy} onClick={sendChat}>Kirim</button>
-                      <button className="btn-ghost" disabled={busy} onClick={endSession}>Akhiri &amp; Evaluasi</button>
+                      <button className="btn-ghost" type="button" disabled={busy || paused} onClick={toggleMic} title="Bicara lewat mikrofon — transkripsi di browser, audio tidak diunggah" aria-label={voiceOn ? "Berhenti bicara" : "Bicara lewat mikrofon"}>{voiceOn ? "■ Berhenti Bicara" : "🎤 Bicara"}</button>
+                      <input value={chatInput} disabled={paused} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !paused) sendChat(); }} placeholder="Tulis jawabanmu di sini… atau tekan 🎤 Bicara" />
+                      <button className="btn" disabled={busy || paused} onClick={sendChat}>Kirim</button>
+                      <button className="btn-ghost" type="button" onClick={() => setShowHint(!showHint)} aria-label="Tampilkan atau sembunyikan petunjuk">💡 Petunjuk</button>
+                      <button className="btn" disabled={busy} onClick={endSession}>Akhiri sesi &amp; buat laporan</button>
                     </div>
                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
                       <label className="small"><input type="checkbox" checked={speakOn} onChange={(e) => { setSpeakOn(e.target.checked); if (!e.target.checked && "speechSynthesis" in window) window.speechSynthesis.cancel(); }} /> Dengarkan balasan persona (suara, id-ID)</label>
@@ -1078,7 +1358,7 @@ export default function Home() {
                       <p><b>1 blind spot:</b> {ev.blindSpot}</p>
                       <p><b>Kalimat alternatif:</b> {ev.alternative}</p>
                       {sharp && (
-                        <div style={{ background: "#f0fdfa", padding: 10, borderRadius: 8, margin: "10px 0" }}>
+                        <div style={{ background: "var(--soft)", padding: 10, borderRadius: 8, margin: "10px 0" }}>
                           <b>Kalimatmu vs Versi yang Lebih Tajam</b>
                           <p className="small">Kalimatmu: <i>“{sharp.original}”</i></p>
                           <p className="small">Versi yang lebih tajam: <i>“{sharp.sharpened}”</i></p>
@@ -1100,24 +1380,64 @@ export default function Home() {
                         <pre className="small">{JSON.stringify(trace, null, 2)}</pre>
                       </details>
                       {sessionDetail.customRoleplay && !sessionDetail.customScenarioId && (
-                        <div style={{ marginTop: 12, borderTop: "1px solid #eee", paddingTop: 12 }}>
+                        <div style={{ marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
                           <b>Simpan sesi ini sebagai skenario?</b>
                           <p className="small">Roleplay Bebas ini bisa disimpan ke Skenarioku supaya bisa dimainkan lagi kapan saja, dengan rubrik yang sama.</p>
                           <button className="btn-ghost" disabled={busy} onClick={saveRoleplayAsScenario}>Simpan sebagai skenario</button>
                           {saveFromRoleplayMsg && (
-                            <p className="small" style={{ marginTop: 8 }}>{saveFromRoleplayMsg} <button className="btn-ghost" type="button" onClick={() => { loadLibrary(); setTab("skenarioku"); }}>Lihat di Skenarioku →</button></p>
+                            <p className="small" style={{ marginTop: 8 }}>{saveFromRoleplayMsg} <button className="btn-ghost" type="button" onClick={() => { loadLibrary(); setTab("studio"); setStudioSub("skenarioku"); }}>Lihat di Skenarioku →</button></p>
                           )}
                         </div>
                       )}
                     </div>
                   );
                 })()}
+                {sessionDetail.evaluation && (
+                  <div className="card" style={{ marginTop: 12 }}>
+                    <h3 style={{ marginTop: 0 }}>Beri penilaian untuk sesi ini</h3>
+                    {sessionFeedbackGiven || fbMsg === "Terima kasih atas umpan balikmu." ? (
+                      <p>Terima kasih atas umpan balikmu.</p>
+                    ) : (
+                      <div>
+                        <p className="small">Seberapa membantu sesi ini buatmu?</p>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 10 }} role="radiogroup" aria-label="Rating sesi, 1 sampai 5 bintang">
+                          {[1, 2, 3, 4, 5].map((nn) => (
+                            <button key={nn} type="button" className={fbRating >= nn ? "btn" : "btn-ghost"} onClick={() => setFbRating(nn)} aria-label={`${nn} bintang — ${RATING_LABELS[nn - 1]}`} style={{ padding: "8px 12px" }}>{"★".repeat(nn)}</button>
+                          ))}
+                        </div>
+                        {fbRating > 0 && <p className="small">{fbRating} dari 5 — {RATING_LABELS[fbRating - 1]}</p>}
+                        <label className="small">Komentar (opsional, maks 1000 karakter)</label>
+                        <textarea rows={3} value={fbComment} onChange={(e) => setFbComment(e.target.value)} placeholder="Ceritakan apa yang paling membantu — atau apa yang kurang — dari sesi ini." maxLength={1000} />
+                        <div style={{ marginTop: 10 }}><button className="btn" disabled={fbBusy} onClick={submitSessionFeedback}>{fbBusy ? "Mengirim…" : "Kirim umpan balik"}</button></div>
+                        {fbMsg && fbMsg !== "Terima kasih atas umpan balikmu." && <p className="small" style={{ marginTop: 8 }}>{fbMsg}</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {tab === "memori" && dash && (
+        {tab === "pengaturan" && (
+          <div style={{ marginBottom: 12 }}>
+            <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Pengaturan &amp; Profil</h1>
+            <p className="mut" style={{ margin: 0 }}>Cara bicara, memori, personal branding, dan umpan balikmu.</p>
+          </div>
+        )}
+        {tab === "pengaturan" && (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <h3 style={{ marginTop: 0 }}>Pengaturan Latihan</h3>
+            <label className="small">Cara bicara di sesi (Formal/Santai)</label>
+            <select value={register} onChange={(e) => setRegister(e.target.value as "formal" | "santai")}>
+              <option value="santai">Santai — bahasa sehari-hari</option>
+              <option value="formal">Formal — bahasa baku, sapaan &ldquo;Anda&rdquo;</option>
+            </select>
+            <label className="small" style={{ marginTop: 12, display: "block" }}><input type="checkbox" checked={speakOn} onChange={(e) => { setSpeakOn(e.target.checked); if (!e.target.checked && "speechSynthesis" in window) window.speechSynthesis.cancel(); }} /> Dengarkan balasan persona (suara, id-ID)</label>
+            <p className="small" style={{ marginTop: 8 }}>Gaya umpan balik evaluator mengikuti skenario yang kamu mainkan (mis. Jujur Keras, Supportif, Seimbang, Detail Teknis) — tampil di kartu skenario dan di laporan evaluasi.</p>
+          </div>
+        )}
+        {tab === "pengaturan" && dash && (
           <div className="card">
             <h3 style={{ marginTop: 0 }}>Memori Saya</h3>
             {dash.memory?.lastRecap ? (
@@ -1133,7 +1453,7 @@ export default function Home() {
           </div>
         )}
 
-        {tab === "memori" && (
+        {tab === "pengaturan" && (
           <div className="card" style={{ marginTop: 12 }}>
             <h3 style={{ marginTop: 0 }}>Ganti Password</h3>
             <form onSubmit={doChangePassword}>
@@ -1150,7 +1470,36 @@ export default function Home() {
           </div>
         )}
 
-        {tab === "branding" && (
+        {tab === "pengaturan" && (
+          <div className="card" style={{ marginTop: 12 }}>
+            <h3 style={{ marginTop: 0 }}>Umpan Balik untuk Phatica</h3>
+            <p className="small">Ceritakan pengalamanmu memakai Phatica — rating dan komentar ini hanya dibaca pemilik aplikasi dan kamu sendiri, bukan pengguna lain.</p>
+            <p className="small">Seberapa membantu Phatica buatmu?</p>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }} role="radiogroup" aria-label="Rating aplikasi, 1 sampai 5 bintang">
+              {[1, 2, 3, 4, 5].map((nn) => (
+                <button key={nn} type="button" className={fbAppRating >= nn ? "btn" : "btn-ghost"} onClick={() => setFbAppRating(nn)} aria-label={`${nn} bintang — ${RATING_LABELS[nn - 1]}`} style={{ padding: "8px 12px" }}>{"★".repeat(nn)}</button>
+              ))}
+            </div>
+            {fbAppRating > 0 && <p className="small">{fbAppRating} dari 5 — {RATING_LABELS[fbAppRating - 1]}</p>}
+            <label className="small">Komentar (opsional, maks 1000 karakter)</label>
+            <textarea rows={3} value={fbAppComment} onChange={(e) => setFbAppComment(e.target.value)} placeholder="Apa yang paling kamu suka? Apa yang perlu diperbaiki?" maxLength={1000} />
+            <div style={{ marginTop: 10 }}><button className="btn" disabled={fbAppBusy} onClick={submitAppFeedback}>{fbAppBusy ? "Mengirim…" : "Kirim umpan balik"}</button></div>
+            {fbAppMsg && <p className="small" style={{ marginTop: 8 }}>{fbAppMsg}</p>}
+            {myFeedback.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h3>Umpan balikmu</h3>
+                {myFeedback.map((f) => (
+                  <div key={f.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
+                    <div>{"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)} <b>{f.rating}/5</b> · {f.kind === "sesi" ? `Sesi: ${f.sessionTitle || "—"}` : "Tentang aplikasi"} · {new Date(f.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
+                    {f.comment && <p className="small" style={{ margin: "4px 0 0" }}>{f.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "pengaturan" && (
           <div className="grid">
             <div className="card"><h3 style={{ marginTop: 0 }}>Brand Profile (tersimpan di memori)</h3>
               <label className="small">Niche</label><input value={bp.niche} onChange={(e) => setBp({ ...bp, niche: e.target.value })} placeholder="mis. dosen komunikasi untuk fresh graduate" />
@@ -1190,6 +1539,7 @@ export default function Home() {
           <div><div style={{ fontSize: 20, fontWeight: 800 }}>Phatica</div><div style={{ fontSize: 13, opacity: .85 }}>AI-Powered Strategic Communication Skills.</div><p className="small" style={{ color: "#c7c5e0" }}>Komunikasi Strategis, Dilatih dengan Kecerdasan Buatan.</p><p className="small"><a href="/privasi" style={{ color: "#c7c5e0" }}>Kebijakan Privasi</a> · <a href="/syarat" style={{ color: "#c7c5e0" }}>Syarat Layanan</a></p></div>
         </div>
       </footer>
+      </main>
     </div>
   );
 }

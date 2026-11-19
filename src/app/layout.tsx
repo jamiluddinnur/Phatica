@@ -27,6 +27,19 @@ export const metadata: Metadata = {
     images: ["/logo.webp"],
   },
 };
+// Skrip bootstrap tema: pasang data-theme sebelum paint supaya tidak berkedip.
+// Pilihan tersimpan di localStorage ("phatica-theme"), default mengikuti sistem.
+const themeBootstrap = `(function(){try{var t=localStorage.getItem("phatica-theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`;
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (<html lang="id"><body>{children}</body></html>);
+  return (
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
 }

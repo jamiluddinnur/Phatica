@@ -19,26 +19,27 @@ datasource db {
 // Tidak ada provider login pihak ketiga, tidak ada kredensial OAuth,
 // tidak ada setup login eksternal.
 model User {
-  id           String    @id @default(cuid())
-  name         String?
-  email        String    @unique
-  passwordHash String
-  profile       LearnerProfile?
-  memory        LearnerMemory?
-  brandProfile  BrandProfile?
-  practice      PracticeSession[]
-  customRoleplays CustomRoleplay[]
-  customPillars CustomPillar[]
-  customScenarios CustomScenario[]
-  diagnostics   Diagnostic[]
-  drills        Drill[]
-  brandAudits   BrandAudit[]
-  contentReviews ContentReview[]
-  subscription  Subscription?
-  sessions      Session[]
-  llmUsage      LlmUsage[]
+  id                  String               @id @default(cuid())
+  name                String?
+  email               String               @unique
+  passwordHash        String
+  profile             LearnerProfile?
+  memory              LearnerMemory?
+  brandProfile        BrandProfile?
+  practice            PracticeSession[]
+  customRoleplays     CustomRoleplay[]
+  customPillars       CustomPillar[]
+  customScenarios     CustomScenario[]
+  diagnostics         Diagnostic[]
+  drills              Drill[]
+  brandAudits         BrandAudit[]
+  contentReviews      ContentReview[]
+  subscription        Subscription?
+  sessions            Session[]
+  llmUsage            LlmUsage[]
   passwordResetTokens PasswordResetToken[]
-  createdAt     DateTime  @default(now())
+  feedbacks           Feedback[]
+  createdAt           DateTime             @default(now())
 }
 
 // --- Sesi login (token acak, disimpan sebagai hash SHA-256) ---
@@ -53,52 +54,53 @@ model Session {
 
 // --- Phatica ---
 model LearnerProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName String @default("")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model LearnerMemory {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  styleTraits   String   @default("") // dipisah koma
-  strengths     String   @default("")
-  weaknesses    String   @default("") // format: "kelemahan (n×)" dipisah |
-  weaknessCounts String  @default("{}") // JSON {label: count}
-  lastRecap     String   @default("") @db.Text
-  lastScenario  String   @default("")
-  totalSessions Int      @default(0)
-  totalTurns    Int      @default(0)
-  levels        String   @default("{}") // JSON {pillar: level 1-5}
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  styleTraits    String   @default("") // dipisah koma
+  strengths      String   @default("")
+  weaknesses     String   @default("") // format: "kelemahan (n×)" dipisah |
+  weaknessCounts String   @default("{}") // JSON {label: count}
+  lastRecap      String   @default("") @db.Text
+  lastScenario   String   @default("")
+  totalSessions  Int      @default(0)
+  totalTurns     Int      @default(0)
+  levels         String   @default("{}") // JSON {pillar: level 1-5}
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model PracticeSession {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scenarioId  String?  // null untuk Roleplay Bebas (skenario buatan pengguna)
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenarioId       String? // null untuk Roleplay Bebas (skenario buatan pengguna)
   customRoleplayId String?
-  customRoleplay CustomRoleplay? @relation(fields: [customRoleplayId], references: [id], onDelete: Cascade)
+  customRoleplay   CustomRoleplay?   @relation(fields: [customRoleplayId], references: [id], onDelete: Cascade)
   customScenarioId String?
-  customScenario CustomScenario? @relation(fields: [customScenarioId], references: [id], onDelete: SetNull)
-  openingVariant Int @default(0) // skenario tetap: 0 = kalimat pembuka asli, 1..n = varian pembuka; Roleplay Bebas: 0
-  pillar      String
-  level       Int      @default(3)
-  status      String   @default("active") // active | finished
-  register    String   @default("santai") // formal | santai — pilihan pengguna sebelum sesi
-  voiceMetrics String  @default("") @db.Text // JSON [{turn, durationSec, words, paceWpm, fillers, used}] — metrik dari transkripsi browser, bukan analisis audio
-  messages    SessionMessage[]
-  adaptations AdaptationEvent[]
-  evaluation  Evaluation?
-  drills      Drill[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  customScenario   CustomScenario?   @relation(fields: [customScenarioId], references: [id], onDelete: SetNull)
+  openingVariant   Int               @default(0) // skenario tetap: 0 = kalimat pembuka asli, 1..n = varian pembuka; Roleplay Bebas: 0
+  pillar           String
+  level            Int               @default(3)
+  status           String            @default("active") // active | finished
+  register         String            @default("santai") // formal | santai — pilihan pengguna sebelum sesi
+  voiceMetrics     String            @default("") @db.Text // JSON [{turn, durationSec, words, paceWpm, fillers, used}] — metrik dari transkripsi browser, bukan analisis audio
+  messages         SessionMessage[]
+  adaptations      AdaptationEvent[]
+  evaluation       Evaluation?
+  feedbacks        Feedback[]
+  drills           Drill[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 // --- Tes Awal + Jalur Belajar ---
@@ -108,9 +110,9 @@ model Diagnostic {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scores    String   // JSON [{key: "bukti"|"struktur"|"empati"|"ketegasan", label, score}]
-  weakest   String   // JSON string[] — 2 dimensi terlemah
-  path      String   // JSON [{scenarioId, title, dimension, done}] — jalur belajar berurutan
+  scores    String // JSON [{key: "bukti"|"struktur"|"empati"|"ketegasan", label, score}]
+  weakest   String // JSON string[] — 2 dimensi terlemah
+  path      String // JSON [{scenarioId, title, dimension, done}] — jalur belajar berurutan
   createdAt DateTime @default(now())
 }
 
@@ -118,18 +120,18 @@ model Diagnostic {
 // Dibuat otomatis dari setiap evaluasi. dueAt = besok; pengguna mengerjakan
 // di kartu "Latihan Hari Ini" di Beranda (in-app saja — belum ada pengingat email).
 model Drill {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionId String
   session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  text      String   @db.Text // isi latihan 2 menit dari evaluasi
-  blindSpot String   @default("") @db.Text
-  status    String   @default("pending") // pending | done
-  attempt   String   @default("") @db.Text // jawaban latihan pengguna
+  text      String          @db.Text // isi latihan 2 menit dari evaluasi
+  blindSpot String          @default("") @db.Text
+  status    String          @default("pending") // pending | done
+  attempt   String          @default("") @db.Text // jawaban latihan pengguna
   dueAt     DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 }
 
 // --- Skenarioku / Pilarku — perpustakaan latihan milik pengguna ---
@@ -145,10 +147,10 @@ model CustomPillar {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String   // 2–40 karakter, unik per pengguna
+  name        String // 2–40 karakter, unik per pengguna
   description String   @default("") // maks 200 karakter, opsional
-  color       String   // hex dari palet tetap (lihat src/lib/custom-library.ts)
-  icon        String   // nama dari daftar tetap (mis. "chat", "target")
+  color       String // hex dari palet tetap (lihat src/lib/custom-library.ts)
+  icon        String // nama dari daftar tetap (mis. "chat", "target")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -156,25 +158,25 @@ model CustomPillar {
 }
 
 model CustomScenario {
-  id                   String   @id @default(cuid())
-  userId               String
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pillarKey            String   // slug pilar bawaan atau "custom:<pillarId>"
-  title                String   // 3–80 karakter
-  personaName          String
-  personaRole          String
-  trait                String   // Skeptis | Marah | Ragu-ragu | Dingin | Menekan
-  situation            String   @db.Text // min ~20 karakter
-  goal                 String   @db.Text // wajib
-  level                Int      @default(3) // 1–5
-  openingLine          String   @default("") @db.Text // kosong = dibuat otomatis dari situasi
-  rubric               String   @db.Text // JSON [{key,label,rubric,weight}] — 2–4 dimensi
-  sourceScenarioId     String?  // id skenario bawaan asal, bila dari duplikasi
+  id                     String            @id @default(cuid())
+  userId                 String
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pillarKey              String // slug pilar bawaan atau "custom:<pillarId>"
+  title                  String // 3–80 karakter
+  personaName            String
+  personaRole            String
+  trait                  String // Skeptis | Marah | Ragu-ragu | Dingin | Menekan
+  situation              String            @db.Text // min ~20 karakter
+  goal                   String            @db.Text // wajib
+  level                  Int               @default(3) // 1–5
+  openingLine            String            @default("") @db.Text // kosong = dibuat otomatis dari situasi
+  rubric                 String            @db.Text // JSON [{key,label,rubric,weight}] — 2–4 dimensi
+  sourceScenarioId       String? // id skenario bawaan asal, bila dari duplikasi
   sourceCustomRoleplayId String? // id CustomRoleplay asal, bila dari "Simpan sebagai skenario"
-  playCount            Int      @default(0)
-  sessions             PracticeSession[]
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  playCount              Int               @default(0)
+  sessions               PracticeSession[]
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 }
 
 // --- Roleplay Bebas / Skenario Buatanmu ---
@@ -183,63 +185,63 @@ model CustomScenario {
 // (lihat src/lib/custom-roleplay.ts). Dihapus bersama akun (Cascade)
 // dan bersama riwayat lewat DELETE /api/history.
 model CustomRoleplay {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  personaName  String
-  personaRole  String
-  trait        String   // Skeptis | Marah | Ragu-ragu | Dingin | Menekan
-  situation    String   @db.Text
-  goal         String   @db.Text
-  level        Int      @default(3)
-  personaCard  String   @db.Text // JSON {personaName, personaRole, trait, personaGoal, hiddenAgenda, pressureStyle, opening}
-  rubric       String   @db.Text // JSON [{key,label,rubric,weight}] — dibuat dari tujuan pengguna
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personaName      String
+  personaRole      String
+  trait            String // Skeptis | Marah | Ragu-ragu | Dingin | Menekan
+  situation        String            @db.Text
+  goal             String            @db.Text
+  level            Int               @default(3)
+  personaCard      String            @db.Text // JSON {personaName, personaRole, trait, personaGoal, hiddenAgenda, pressureStyle, opening}
+  rubric           String            @db.Text // JSON [{key,label,rubric,weight}] — dibuat dari tujuan pengguna
   sourceScenarioId String? // id skenario tetap asal, bila ini hasil "Sesuaikan & Mainkan"
-  customized   Boolean  @default(false) // true = turunan skenario tetap yang diubah pengguna
-  sessions     PracticeSession[]
-  createdAt    DateTime @default(now())
+  customized       Boolean           @default(false) // true = turunan skenario tetap yang diubah pengguna
+  sessions         PracticeSession[]
+  createdAt        DateTime          @default(now())
 }
 
 model SessionMessage {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   sessionId String
   session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role      String   // user | persona
-  content   String   @db.Text
-  createdAt DateTime @default(now())
+  role      String // user | persona
+  content   String          @db.Text
+  createdAt DateTime        @default(now())
 }
 
 model AdaptationEvent {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   sessionId String
   session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   fromLevel Int
   toLevel   Int
-  signal    String   // mis. "dominating" | "struggling" | "steady"
-  reason    String   @db.Text
-  createdAt DateTime @default(now())
+  signal    String // mis. "dominating" | "struggling" | "steady"
+  reason    String          @db.Text
+  createdAt DateTime        @default(now())
 }
 
 model Evaluation {
-  id           String   @id @default(cuid())
-  sessionId    String   @unique
+  id           String          @id @default(cuid())
+  sessionId    String          @unique
   session      PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  verdict      String   @db.Text
+  verdict      String          @db.Text
   overall      Int
-  scores       String   // JSON [{key,label,score,weight}]
-  quotes       String   // JSON string[] — tepat 3 kutipan bukti
-  blindSpot    String   @db.Text
-  alternative  String   @db.Text
-  drill        String   @db.Text
-  comparison   String   @default("") @db.Text
-  patterns     String   @default("") // pola berbahaya yang terdeteksi, dipisah koma
-  recurring    String   @default("") // kelemahan berulang dari memori
-  voiceSummary String   @default("") @db.Text // ringkasan suara (hanya bila ada jawaban suara): kecepatan, filler, catatan
-  sharpened    String   @default("") @db.Text // JSON {original, sharpened, why} — "Kalimatmu vs Versi yang Lebih Tajam"
-  drillStatus  String   @default("") // status latihan 2 menit sebelumnya saat evaluasi dibuat: "selesai" | "belum" | "tidak ada"
-  register     String   @default("santai") // formal | santai — register yang dipakai di sesi ini
-  toolTrace    String   @default("[]") @db.Text // JSON [{tool,input,output,durationMs}]
-  createdAt    DateTime @default(now())
+  scores       String // JSON [{key,label,score,weight}]
+  quotes       String // JSON string[] — tepat 3 kutipan bukti
+  blindSpot    String          @db.Text
+  alternative  String          @db.Text
+  drill        String          @db.Text
+  comparison   String          @default("") @db.Text
+  patterns     String          @default("") // pola berbahaya yang terdeteksi, dipisah koma
+  recurring    String          @default("") // kelemahan berulang dari memori
+  voiceSummary String          @default("") @db.Text // ringkasan suara (hanya bila ada jawaban suara): kecepatan, filler, catatan
+  sharpened    String          @default("") @db.Text // JSON {original, sharpened, why} — "Kalimatmu vs Versi yang Lebih Tajam"
+  drillStatus  String          @default("") // status latihan 2 menit sebelumnya saat evaluasi dibuat: "selesai" | "belum" | "tidak ada"
+  register     String          @default("santai") // formal | santai — register yang dipakai di sesi ini
+  toolTrace    String          @default("[]") @db.Text // JSON [{tool,input,output,durationMs}]
+  createdAt    DateTime        @default(now())
 }
 
 model BrandProfile {
@@ -261,7 +263,7 @@ model BrandAudit {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   bio       String   @db.Text
   posts     String   @default("") @db.Text
-  scores    String   // JSON [{key,label,score}]
+  scores    String // JSON [{key,label,score}]
   rewrite   String   @db.Text // bio baru siap pakai
   toolTrace String   @default("[]") @db.Text
   createdAt DateTime @default(now())
@@ -273,8 +275,8 @@ model ContentReview {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   draft     String   @db.Text
   platform  String   @default("Threads")
-  scores    String   // JSON [{key,label,score}] — Hook, Kejelasan, Kejujuran
-  hooks     String   // JSON string[] — tepat 3 hook rewrite
+  scores    String // JSON [{key,label,score}] — Hook, Kejelasan, Kejujuran
+  hooks     String // JSON string[] — tepat 3 hook rewrite
   toolTrace String   @default("[]") @db.Text
   createdAt DateTime @default(now())
 }
@@ -298,7 +300,7 @@ model LlmUsage {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      String   // yyyy-mm-dd (WIB)
+  date      String // yyyy-mm-dd (WIB)
   turns     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -333,4 +335,21 @@ model Subscription {
   renewsAt    DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// --- Umpan balik pengguna (rating + komentar) ---
+// Dikirim pengguna setelah sesi (kind "sesi", sessionId terisi) atau tentang
+// aplikasi secara umum (kind "aplikasi", sessionId null). Komentar HANYA
+// terlihat oleh pemilik aplikasi + pengirimnya sendiri — bukan pengguna lain.
+// Tidak ada seed/contoh umpan balik: produksi mulai kosong.
+model Feedback {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int // 1-5, wajib
+  comment   String           @default("") @db.Text // opsional, maks 1000 karakter
+  kind      String           @default("aplikasi") // "sesi" | "aplikasi"
+  sessionId String?
+  session   PracticeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  createdAt DateTime         @default(now())
 }

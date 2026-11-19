@@ -1,44 +1,126 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* Phatica — bright professional palette. Brand: indigo #191641 + teal #14B8A6 on warm white #FFFBF5.
-   Red (--danger) is ONLY for true danger/error signals: delete history, end session,
-   dangerous-pattern alert, recurring-weakness markers, error messages. Never on brand buttons/bars. */
-:root{--indigo:#191641;--indigo-soft:#e6e5f2;--teal:#14b8a6;--teal-deep:#0d9488;--danger:#b91c1c;--ink:#191641;--muted:#5b5878;--line:#e8e4d8;--bg:#fffbf5;--card:#ffffff}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
-:focus-visible{outline:3px solid var(--teal);outline-offset:2px;border-radius:6px}
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
-a{color:var(--teal-deep)}button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-weight:600}
-.btn{background:var(--teal);color:#fff}.btn:hover{background:var(--teal-deep)}
-.btn-indigo{background:var(--indigo);color:#fff}.btn-indigo:hover{background:#2a2766}
-.btn-ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
-.btn-danger{background:#fff;border:1px solid #fecaca;color:var(--danger)}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(25,22,65,.06)}
-.tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;background:#ccfbf1;color:#0f766e}
-.badge{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}.ok{background:#ccfbf1;color:#0f766e}.warn{background:#fef3c7;color:#92400e}.bad{background:#fee2e2;color:#991b1b}.info{background:var(--indigo-soft);color:var(--indigo)}
-header.top{background:#fff;color:var(--ink);padding:12px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+/* Phatica — sistem desain slate/indigo (restyle Nov 2026, standalone saja).
+   Token dari referensi desain: bg terang #F8FAFC, indigo #6366F1 → violet #8B5CF6,
+   hijau #10B981, merah #E11D48 (hanya bahaya/error). Logo teal tetap dipakai
+   sebagai brand mark saja (public/logo.webp), BUKAN sebagai warna aksen UI. */
+:root{
+  --bg:#F8FAFC; --surface:#ffffff; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0;
+  --ai:#6366F1; --ai2:#8B5CF6; --good:#10B981; --bad:#E11D48; --soft:#EEF2FF;
+  --side:#0F172A; --side-ink:#CBD5E1; --danger:#E11D48;
+  --glow:0 0 22px rgba(99,102,241,.45);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B1120; --surface:#111A2E; --ink:#E8ECF5; --muted:#94A3B8; --line:#1E2A44;
+    --soft:#1B2250; --side:#080D1A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B1120; --surface:#111A2E; --ink:#E8ECF5; --muted:#94A3B8; --line:#1E2A44;
+  --soft:#1B2250; --side:#080D1A;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+:focus-visible{outline:2px solid var(--ai);outline-offset:2px;border-radius:6px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+a{color:var(--ai)}
+button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-weight:600;font:inherit}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--ink)}
+input[type="checkbox"]{width:auto}
+
+/* --- Latar: ikon komunikasi bergeser + radial glow (dari referensi) --- */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='280' fill='none' stroke='%236366F1' stroke-opacity='.24' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M40 40h90a14 14 0 0 1 14 14v40a14 14 0 0 1-14 14H80l-22 18v-18H40a14 14 0 0 1-14-14V54a14 14 0 0 1 14-14z'/%3E%3Cpath d='M52 66h66M52 82h40'/%3E%3Crect x='290' y='30' width='24' height='46' rx='12'/%3E%3Cpath d='M278 66a24 24 0 0 0 48 0M302 90v20M288 110h28'/%3E%3Cpath d='M200 200v-20M212 210v-40M224 195v-10M236 215v-50M248 200v-20M260 205v-30'/%3E%3Cpath stroke='%238B5CF6' d='M330 190h50a10 10 0 0 1 10 10v22a10 10 0 0 1-10 10h-30l-14 12v-12h-6a10 10 0 0 1-10-10v-22a10 10 0 0 1 10-10z'/%3E%3C/svg%3E");background-size:420px 280px;animation:drift 45s linear infinite}
+#bg::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 500px at 85% 0%,rgba(139,92,246,.18),transparent 60%),radial-gradient(700px 400px at 0 100%,rgba(16,185,129,.10),transparent 60%)}
+@keyframes drift{to{background-position:-420px 0}}
+
+/* --- Ticker tips --- */
+.mq{display:flex;width:max-content;animation:mq 40s linear infinite}
+.mq:hover{animation-play-state:paused}
+.mq span{white-space:nowrap;padding-right:2.5rem;font-size:.85rem}
+@keyframes mq{to{transform:translateX(-50%)}}
+
+/* --- Shell sidebar --- */
+.shell{display:flex;min-height:100vh;position:relative;z-index:1}
+.sidebar{display:none}
+@media(min-width:768px){
+  .sidebar{display:flex;flex-direction:column;width:16rem;flex:none;padding:1rem;gap:.25rem;position:sticky;top:0;height:100vh;background:var(--side)}
+}
+.main{flex:1;min-width:0}
+.mnav{display:flex;gap:.5rem;overflow-x:auto;padding:.75rem;background:var(--side)}
+@media(min-width:768px){.mnav{display:none}}
+.nav{display:flex;gap:.7rem;align-items:center;width:100%;text-align:left;padding:.6rem .75rem;border-radius:10px;color:var(--side-ink);font-size:.9rem;cursor:pointer;background:transparent}
+.nav:hover{background:rgba(255,255,255,.06)}
+.nav.on{background:rgba(99,102,241,.25);color:#fff}
+.brandmark{display:flex;align-items:center;gap:.5rem;padding:.5rem .5rem .75rem;margin-bottom:.5rem}
+.brandmark .word{color:#fff;font-weight:700;font-size:1.15rem}
+.brandmark .logo{width:40px;height:40px}
+
+/* --- Komponen --- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.mut{color:var(--muted)}
+.btn{border-radius:10px;padding:.5rem .9rem;font-weight:600;font-size:.875rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:focus-visible,.pill:focus-visible,.nav:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.pri,.btn-primary{background:linear-gradient(90deg,var(--ai),var(--ai2));color:#fff;border:0;box-shadow:var(--glow)}
+.btn{background:linear-gradient(90deg,var(--ai),var(--ai2));color:#fff;border:0;box-shadow:var(--glow)}
+.btn:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.btn-indigo{background:linear-gradient(90deg,var(--ai),var(--ai2));color:#fff;border:0;box-shadow:var(--glow)}
+.btn-ghost{background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--ai);color:var(--ai)}
+.btn-danger{background:var(--surface);border:1px solid #fecaca;color:var(--danger)}
+.pill{padding:.4rem .9rem;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:.85rem;font-weight:500;cursor:pointer;white-space:nowrap}
+.pill.on{background:var(--ai);color:#fff;border-color:var(--ai)}
+.tag{font-size:.72rem;padding:.15rem .55rem;border-radius:999px;background:var(--soft);color:var(--ai);font-weight:600}
+.av{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:1.3rem;background:var(--soft)}
+.bar{height:8px;border-radius:9px;background:var(--line);overflow:hidden}
+.bar>i,.bar>div{display:block;height:100%;background:linear-gradient(90deg,var(--ai),var(--good));border-radius:9px}
+.bar.indigo>div{background:linear-gradient(90deg,var(--ai),var(--ai2))}
+.badge{display:inline-block;font-size:.7rem;font-weight:600;margin:.3rem .3rem 0 0;padding:.1rem .5rem;border-radius:999px}
+.g{background:rgba(16,185,129,.15);color:var(--good)}
+.r{background:rgba(225,29,72,.13);color:var(--bad)}
+.ok{background:rgba(16,185,129,.15);color:var(--good)}
+.warn{background:#fef3c7;color:#92400e}
+.bad{background:rgba(225,29,72,.13);color:var(--bad)}
+.info{background:var(--soft);color:var(--ai)}
+.bub{max-width:85%;padding:.65rem .85rem;border-radius:14px;font-size:.9rem;line-height:1.45}
+.bub.ai{background:var(--soft)}
+.bub.me{background:var(--ai);color:#fff;margin-left:auto}
+.wave{display:flex;gap:3px;align-items:center;height:36px}
+.wave i{width:4px;background:var(--ai2);border-radius:3px;animation:w 1s ease-in-out infinite;height:20%}
+@keyframes w{50%{height:100%}}
+.paused .wave i{animation-play-state:paused}
+.modal{position:fixed;inset:0;background:rgba(2,6,23,.6);display:none;place-items:center;z-index:50;padding:1rem}
+.modal.on{display:grid}
+
+/* --- Kelas lama yang masih dipakai halaman lain --- */
+header.top{background:var(--surface);color:var(--ink);padding:12px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line);position:relative;z-index:1}
 header.top .tagline{font-size:13px;color:var(--muted)}
 .logo{width:44px;height:44px;border-radius:12px;object-fit:cover;flex:none}
 .logo-sm{width:32px;height:32px;border-radius:8px;object-fit:cover;flex:none}
 .hero{padding:56px 16px 40px;text-align:center}
 .hero h1{font-size:clamp(32px,5vw,56px);line-height:1.08;margin:0 0 16px;font-weight:800;letter-spacing:-.02em}
-.hero h1 em{color:var(--teal);font-style:italic}
+.hero h1 em{color:var(--ai);font-style:italic}
 .hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin:0 auto 24px;line-height:1.6}
 .closing{padding:56px 16px;text-align:center}
 .closing h2{font-size:clamp(28px,4vw,44px);line-height:1.15;margin:0 0 20px;font-weight:800;letter-spacing:-.01em}
-footer.foot{background:var(--indigo);color:#fff;padding:36px 20px;margin-top:40px}
-footer.foot a{color:#99f6e4}
-.wrap{max-width:1100px;margin:0 auto;padding:24px 16px}
+footer.foot{background:var(--side);color:#fff;padding:36px 20px;margin-top:40px}
+footer.foot a{color:#c7d2fe}
+.wrap{max-width:72rem;margin:0 auto;padding:24px 16px}
+@media(min-width:768px){.wrap{padding:32px}}
 .grid{display:grid;gap:16px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
 @media(max-width:700px){.g2,.g3,.g4{grid-template-columns:1fr}.hero{padding:36px 16px 28px}}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;overflow-x:auto}.tabs button{background:#fff;border:1px solid var(--line);color:var(--ink);white-space:nowrap}.tabs button.on{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;overflow-x:auto}
+.tabs button{background:var(--surface);border:1px solid var(--line);color:var(--ink);white-space:nowrap}
+.tabs button.on{background:var(--ai);color:#fff;border-color:var(--ai)}
 .small{color:var(--muted);font-size:13px}
-.bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}.bar>div{height:100%;background:var(--teal)}
-.bar.indigo>div{background:var(--indigo)}
-.stat{font-size:28px;font-weight:800;color:var(--indigo)}
-.chat{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff;max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.stat{font-size:28px;font-weight:800;color:var(--ink)}
+.chat{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--surface);max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
 .msg{max-width:85%;padding:10px 14px;border-radius:14px;line-height:1.5}
-.msg.user{align-self:flex-end;background:var(--teal);color:#fff}
-.msg.persona{align-self:flex-start;background:#f3f4f6;color:var(--ink)}
+.msg.user{align-self:flex-end;background:var(--ai);color:#fff}
+.msg.persona{align-self:flex-start;background:var(--soft);color:var(--ink)}
 pre{white-space:pre-wrap;font:inherit;margin:0}
+table{color:var(--ink)}
+td,th{padding:6px 8px;border-bottom:1px solid var(--line)}
+@media(prefers-reduced-motion:reduce){.wave i,#bg,.mq{animation:none}}
