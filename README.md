@@ -548,19 +548,69 @@ memerlukan setup OAuth apa pun.
   terlemah di 2 sesi. Model Prisma: `Diagnostic` (scores, weakest, path JSON).
   Rute: `GET/POST /api/diagnostic`.
 
-## Suara (mikrofon di Ruang Latihan)
+## Suara (mikrofon + suara persona di Ruang Latihan)
+
+### Input suara — transkripsi live & berkelanjutan
 
 - Tombol 🎤 Bicara memakai Web Speech API (`SpeechRecognition`, bahasa id-ID,
-  butuh Chrome + izin mikrofon). Transkripsi mengisi kotak jawaban — pengguna
-  bisa mengedit sebelum mengirim. Toggle "Dengarkan balasan persona" memakai
-  `speechSynthesis` (id-ID, default mati).
-- **Audio tidak pernah direkam/diunggah.** Yang dikirim hanya teks + metrik:
-  durasi bicara (detik), jumlah kata, kecepatan (kata/menit), jumlah kata
-  pengisi (eh, anu, eee, hmm, ya kan, ...). Laporan evaluasi menampilkan bagian
-  Suara hanya bila ada jawaban suara, dengan label jujur bahwa kecepatan dan
-  filler diukur dari transkripsi browser, bukan analisis audio.
+  `interimResults` + `continuous` aktif, butuh Chrome + izin mikrofon).
+- **Transkripsi tampil LIVE** di kotak jawaban saat pengguna berbicara
+  (hasil interim langsung terlihat, bukan menunggu berhenti bicara), dan
+  recognizer **menyambung otomatis** setiap kali browser menghentikannya
+  di jeda bicara — kata-kata setelah jeda tidak hilang. Logika buffernya
+  murni dan teruji di `src/lib/voice-transcript.ts`: teks yang sudah
+  diketik menjadi *prefix* (suara menambah setelahnya, tidak pernah
+  menimpa), hasil final terakumulasi lintas restart tanpa duplikasi,
+  hasil interim hanya ditampilkan dan tidak pernah terkomit.
+- Mikrofon berhenti untuk selamanya saat pengguna menekan tombol mic lagi,
+  menekan Kirim, atau mengakhiri sesi. Error ditangani jujur: izin ditolak
+  → pesan cara mengizinkan; koneksi pengenalan suara putus 3x berurutan →
+  berhenti dengan pesan periksa internet.
+- **Audio tidak pernah direkam/diunggah.** Yang dikirim hanya teks final +
+  metrik sesi mikrofon secara keseluruhan (dari start pertama sampai
+  berhenti final): durasi bicara (detik), jumlah kata, kecepatan
+  (kata/menit), jumlah kata pengisi (eh, anu, eee, hmm, ya kan, ...).
+  Laporan evaluasi menampilkan bagian Suara hanya bila ada jawaban suara,
+  dengan label jujur bahwa kecepatan dan filler diukur dari transkripsi
+  browser, bukan analisis audio.
 - Metrik tersimpan di `PracticeSession.voiceMetrics` (JSON per giliran);
   ringkasan suara di `Evaluation.voiceSummary`.
+- **Batas jujur input suara:** kualitas dan kecepatan pengenalan suara
+  sepenuhnya tergantung browser + koneksi pengguna (di Chrome, pengenalan
+  diproses lewat server Google). Pada momen yang jarang — misalnya
+  pengguna berbicara persis saat recognizer sedang menyambung ulang —
+  satu-dua kata masih bisa terlewat. Transkripsi streaming yang
+  benar-benar tanpa celah memerlukan layanan ASR streaming berbayar
+  (mis. Deepgram) + backend khusus — **belum termasuk**.
+
+### Percakapan Suara — persona benar-benar berbicara (TTS)
+
+- Toggle **🔊 Suara Persona: Nyala/Mati** di Ruang Latihan (di samping
+  tombol mikrofon). Saat menyala, balasan persona **dibacakan otomatis**
+  dengan `speechSynthesis` — termasuk kalimat pembuka saat sesi baru
+  dimulai. Menyalakan mikrofon pertama kali otomatis menyalakan mode ini,
+  kecuali pengguna pernah memilih sendiri; pilihan pengguna diingat di
+  `localStorage` (`phatica-speak-persona`) dan juga bisa diatur dari
+  Pengaturan & Profil.
+- Suara yang dipakai dipilih dari `speechSynthesis.getVoices()`: utamakan
+  lang persis `id-ID`, lalu lang berawalan `id` (helper murni
+  `pickIndonesianVoice` di `src/lib/voice-transcript.ts`, menangani
+  pemuatan async lewat event `voiceschanged`). Utterance selalu
+  `lang="id-ID"`, rate 1.0, pitch 1.0. **Bila browser/sistem pengguna
+  tidak punya suara Bahasa Indonesia**, dipakai suara default browser
+  dengan lang tetap id-ID — kualitas dan aksennya tergantung browser &
+  sistem pengguna, di luar kendali aplikasi.
+- **Anti-tumpuk:** balasan baru selalu memotong bacaan sebelumnya
+  (`cancel()` dulu); persona berhenti bicara saat sesi diakhiri, saat
+  pengguna menekan mikrofon untuk bicara, dan saat pengguna pindah
+  tab/view atau keluar. Selama persona berbicara tampil status kecil
+  "🔊 Persona sedang bicara…" — menekan tombol Suara Persona
+  menghentikannya. TTS murni lapisan tampilan: tidak mengubah logika
+  sesi/evaluasi, dan audio tetap tidak direkam/diunggah.
+- **Batas jujur TTS:** suara yang terdengar adalah suara bawaan browser —
+  bukan suara neural sekelas manusia. Suara sekelas manusia memerlukan
+  TTS cloud berbayar (OpenAI TTS / Google Cloud TTS / ElevenLabs) —
+  **belum termasuk**.
 
 ## Latihan Lanjutan yang Ditagih (kartu "Latihan Hari Ini" di Beranda)
 

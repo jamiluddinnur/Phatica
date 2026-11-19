@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { TRAITS, CUSTOM_TEMPLATES } from "@/lib/custom-roleplay";
 import { PILLAR_COLORS, PILLAR_ICONS, RUBRIC_DIMENSION_LIBRARY, duplicatePrefillFromScenario, personaCardForCustomScenario, pillarLabelForKey, validateWizardStep } from "@/lib/custom-library";
 import { RATING_LABELS } from "@/lib/feedback";
+import { startSession as startVoiceSession, beginInstance as beginVoiceInstance, applyResult as applyVoiceResult, displayText as voiceDisplayText, finalText as voiceFinalText, pickIndonesianVoice, type VoiceTranscriptBuffer } from "@/lib/voice-transcript";
 
 type User = { id: string; name: string; email: string };
 type Scenario = { id: string; title: string; pillar: string; personaName: string; personaRole: string; context: string; opening: string; goal: string; baseDifficulty: number; durationLabel: string; evaluatorMode: string; fourthLabel: string; rubric: Array<{ key: string; label: string; rubric: string; weight: number }>; verdictHint: string; modelAnswer: string; tip: string };
@@ -108,6 +109,7 @@ export default function Home() {
     setAuthBusy(false);
   }
   async function doLogout() {
+    stopSpeaking();
     try { await api("/api/auth/logout", "POST"); } catch { /* abaikan */ }
     setUser(null); setDash(null); setTab("beranda"); setIsOwner(false);
   }
@@ -231,6 +233,7 @@ export default function Home() {
       const d = await api(`/api/sessions/detail?id=${r.session.id}`); setSessionDetail(d.session);
       setLastEngine(""); setCustomStage("Pembuka"); setCustomTurns(0);
       setTab("latihan");
+      speakOpening(d.session);
     } catch (err: any) { setMsg(err.message); }
     setBusy(false);
   }
@@ -262,11 +265,46 @@ export default function Home() {
   const [voiceOn, setVoiceOn] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState("");
   const [speakOn, setSpeakOn] = useState(false);
+  // Mode Percakapan Suara: persona benar-benar berbicara (TTS browser).
+  const [personaSpeaking, setPersonaSpeaking] = useState(false);
+  const speakOnRef = useRef(false);
+  // true bila pengguna pernah memilih sendiri Suara Persona (tersimpan di
+  // localStorage). Selama belum pernah, menyalakan mikrofon pertama kali
+  // otomatis menyalakan Suara Persona (default mode percakapan suara).
+  const speakPrefStoredRef = useRef(false);
+  // Suara TTS Bahasa Indonesia terpilih dari speechSynthesis.getVoices().
+  const idVoiceRef = useRef<any>(null);
   const [lastVoice, setLastVoice] = useState<{ used: boolean; durationSec: number } | null>(null);
   const voiceStartRef = useRef(0);
   const recogRef = useRef<any>(null);
+  // Buffer transkrip sesi mikrofon (prefix + final terakumulasi + interim).
+  const voiceBufRef = useRef<VoiceTranscriptBuffer | null>(null);
+  // Niat pengguna: true selama tombol mikrofon dalam keadaan menyala.
+  // onend hanya me-restart recognizer bila ini true.
+  const voiceWantedRef = useRef(false);
+  // Jumlah error "network" berurutan — menyerah setelah 3x.
+  const voiceNetErrorsRef = useRef(0);
+  const voiceRestartTimerRef = useRef<any>(null);
   useEffect(() => {
     setVoiceSupported(typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
+  }, []);
+  // Muat pilihan Suara Persona dari localStorage + daftar suara TTS.
+  // getVoices() sering kosong di panggilan pertama — daftar asli tiba
+  // belakangan lewat event "voiceschanged", jadi dengarkan event itu juga.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("phatica-speak-persona");
+      if (saved === "1" || saved === "0") {
+        speakPrefStoredRef.current = true;
+        const on = saved === "1";
+        setSpeakOn(on); speakOnRef.current = on;
+      }
+    } catch { /* abaikan */ }
+    if (!("speechSynthesis" in window)) return;
+    const loadVoices = () => { idVoiceRef.current = pickIndonesianVoice(window.speechSynthesis.getVoices() as any); };
+    loadVoices();
+    window.speechSynthesis.addEventListener?.("voiceschanged", loadVoices);
+    return () => { window.speechSynthesis.removeEventListener?.("voiceschanged", loadVoices); };
   }, []);
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("phatica-theme") : null;
@@ -285,28 +323,157 @@ export default function Home() {
     const t = setInterval(() => { if (!pausedRef.current) setElapsed((e) => e + 1); }, 1000);
     return () => clearInterval(t);
   }, [sessionDetail?.id, sessionDetail?.status]);
+  // Selesaikan sesi mikrofon untuk selamanya: matikan niat restart,
+  // hentikan recognizer, komit teks final (prefix + hasil final) ke kotak
+  // jawaban, dan hitung durasi dari SELURUH sesi mikrofon (start pertama
+  // sampai berhenti final) — bukan per potongan recognizer. Metrik suara
+  // (kata, kecepatan, pengisi) dihitung server dari teks final + durasi ini.
+  function finalizeVoice(): { text: string; voice: { used: boolean; durationSec: number } | null } | null {
+    voiceWantedRef.current = false;
+    if (voiceRestartTimerRef.current) { clearTimeout(voiceRestartTimerRef.current); voiceRestartTimerRef.current = null; }
+    const rec = recogRef.current;
+    recogRef.current = null;
+    if (rec) {
+      // Lepas handler dulu supaya onend dari stop() ini tidak memicu
+      // restart atau finalisasi ganda.
+      rec.onresult = null; rec.onerror = null; rec.onend = null;
+      try { rec.stop(); } catch { /* abaikan */ }
+    }
+    setVoiceOn(false);
+    const buf = voiceBufRef.current;
+    if (!buf) return null;
+    voiceBufRef.current = null;
+    const text = voiceFinalText(buf);
+    setChatInput(text);
+    const dur = (Date.now() - voiceStartRef.current) / 1000;
+    const voice = dur > 0.5 ? { used: true, durationSec: dur } : null;
+    if (voice) setLastVoice(voice);
+    return { text, voice };
+  }
+  // Buat instans recognizer baru dan mulai mendengarkan. Dipakai saat start
+  // pertama maupun auto-restart: tiap instans punya daftar hasil sendiri,
+  // jadi hitungan komit di buffer direset lewat beginVoiceInstance,
+  // sementara teks final yang sudah terkumpul tetap dipertahankan.
+  function startRecognition() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const buf = voiceBufRef.current;
+    if (!SR || !buf || !voiceWantedRef.current) return;
+    beginVoiceInstance(buf);
+    const rec = new SR();
+    rec.lang = "id-ID"; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+    rec.onresult = (e: any) => {
+      voiceNetErrorsRef.current = 0;
+      const results = Array.from(e.results).map((r: any) => ({ isFinal: !!r.isFinal, transcript: (r[0] && r[0].transcript) || "" }));
+      applyVoiceResult(buf, results, e.resultIndex || 0);
+      // Tampilkan LIVE — pengguna melihat kata-katanya saat berbicara,
+      // bukan menunggu sampai berhenti bicara.
+      setChatInput(voiceDisplayText(buf));
+    };
+    rec.onerror = (e: any) => {
+      const err = (e && e.error) || "";
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        finalizeVoice();
+        setVoiceMsg("Izin mikrofon ditolak — izinkan mikrofon di pengaturan browser, lalu coba lagi");
+        return;
+      }
+      if (err === "audio-capture") {
+        finalizeVoice();
+        setVoiceMsg("Mikrofon tidak ditemukan — periksa perangkat mikrofonmu, atau ketik jawabanmu");
+        return;
+      }
+      if (err === "network") {
+        voiceNetErrorsRef.current += 1;
+        if (voiceNetErrorsRef.current >= 3) {
+          finalizeVoice();
+          setVoiceMsg("Koneksi untuk pengenalan suara terputus — periksa internetmu, atau ketik jawabanmu");
+        }
+        // Di bawah 3x berturut-turut: diamkan — onend me-restart dengan tenang.
+        return;
+      }
+      // "no-speech" → restart tenang lewat onend.
+      // "aborted" → abaikan; biasanya menyusul stop() dari pengguna sendiri
+      // dan finalisasi sudah berjalan lewat finalizeVoice.
+    };
+    rec.onend = () => {
+      if (recogRef.current === rec) recogRef.current = null;
+      if (!voiceWantedRef.current) { finalizeVoice(); return; }
+      // Recognizer berhenti sendiri (jeda bicara / batas sesi dari browser)
+      // padahal mikrofon masih menyala — mulai lagi setelah jeda singkat
+      // supaya kata-kata setelah jeda tidak hilang.
+      if (voiceRestartTimerRef.current) clearTimeout(voiceRestartTimerRef.current);
+      voiceRestartTimerRef.current = setTimeout(() => {
+        voiceRestartTimerRef.current = null;
+        if (voiceWantedRef.current) startRecognition();
+      }, 250);
+    };
+    recogRef.current = rec;
+    try { rec.start(); } catch {
+      // start() bisa melempar bila instans dianggap sudah berjalan —
+      // jadwalkan percobaan ulang lewat jalur restart yang sama.
+      if (voiceWantedRef.current && !voiceRestartTimerRef.current) {
+        voiceRestartTimerRef.current = setTimeout(() => {
+          voiceRestartTimerRef.current = null;
+          if (voiceWantedRef.current) startRecognition();
+        }, 250);
+      }
+    }
+  }
   function toggleMic() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { setVoiceMsg("Browser ini belum mendukung input suara — ketik jawabanmu."); return; }
-    if (voiceOn && recogRef.current) { recogRef.current.stop(); return; }
-    const rec = new SR();
-    rec.lang = "id-ID"; rec.interimResults = false; rec.continuous = false;
+    if (voiceWantedRef.current) { finalizeVoice(); setVoiceMsg(""); return; }
+    // Persona tidak bicara bersamaan dengan pengguna: diamkan dulu TTS.
+    stopSpeaking();
+    // Mode Percakapan Suara: menyalakan mikrofon pertama kali otomatis
+    // menyalakan Suara Persona — kecuali pengguna pernah memilih sendiri.
+    if (!speakPrefStoredRef.current && !speakOnRef.current) { setSpeakOn(true); speakOnRef.current = true; }
+    // Sesi mikrofon baru: teks yang sudah diketik menjadi prefix —
+    // suara MENAMBAH setelahnya, tidak pernah menimpa.
+    voiceBufRef.current = startVoiceSession(chatInput);
+    voiceNetErrorsRef.current = 0;
     voiceStartRef.current = Date.now();
-    rec.onresult = (e: any) => {
-      const text = Array.from(e.results).map((r: any) => r[0].transcript).join(" ").trim();
-      if (text) setChatInput((prev) => (prev ? prev + " " : "") + text);
-    };
-    rec.onend = () => { setVoiceOn(false); const dur = (Date.now() - voiceStartRef.current) / 1000; if (dur > 0.5) setLastVoice({ used: true, durationSec: dur }); };
-    rec.onerror = () => { setVoiceOn(false); setVoiceMsg("Mikrofon tidak bisa dipakai — periksa izin mikrofon di browser, lalu ketik jawabanmu."); };
-    recogRef.current = rec;
-    try { rec.start(); setVoiceOn(true); setVoiceMsg("Mendengarkan… bicara sekarang, lalu tekan lagi untuk berhenti."); } catch { setVoiceMsg("Mikrofon tidak bisa dipakai — ketik jawabanmu."); }
+    voiceWantedRef.current = true;
+    setVoiceOn(true);
+    setVoiceMsg("🎤 Mendengarkan… bicara saja, teksmu muncul langsung di kotak jawaban");
+    startRecognition();
   }
+  // ---- Percakapan Suara: persona berbicara (TTS bawaan browser) ----
+  // Murni lapisan tampilan: tidak mengubah logika sesi/evaluasi, dan
+  // audio tidak pernah direkam/diunggah.
+  function stopSpeaking() {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setPersonaSpeaking(false);
+  }
+  // Satu-satunya jalan mengubah preferensi Suara Persona — state, ref,
+  // dan localStorage selalu sinkron. Mematikan = persona langsung diam.
+  function setSpeakPref(on: boolean) {
+    setSpeakOn(on); speakOnRef.current = on; speakPrefStoredRef.current = true;
+    try { localStorage.setItem("phatica-speak-persona", on ? "1" : "0"); } catch { /* abaikan */ }
+    if (!on) stopSpeaking();
+  }
+  function toggleSpeak() { setSpeakPref(!speakOnRef.current); }
   function speakText(text: string) {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "id-ID";
-    window.speechSynthesis.speak(u);
+    const clean = (text || "").trim();
+    if (!clean) return;
+    const synth = window.speechSynthesis;
+    synth.cancel(); // anti-tumpuk: balasan baru selalu memotong yang lama
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = "id-ID"; u.rate = 1.0; u.pitch = 1.0;
+    // Pakai suara Bahasa Indonesia bila browser/sistem menyediakannya;
+    // bila tidak ada, suara default browser dengan lang tetap id-ID.
+    const voice = idVoiceRef.current || pickIndonesianVoice(synth.getVoices() as any);
+    if (voice) { u.voice = voice as SpeechSynthesisVoice; idVoiceRef.current = voice; }
+    u.onstart = () => setPersonaSpeaking(true);
+    u.onend = () => setPersonaSpeaking(false);
+    u.onerror = () => setPersonaSpeaking(false);
+    synth.speak(u);
+  }
+  // Bacakan kalimat pembuka persona saat sesi BARU dimulai (mode suara).
+  function speakOpening(session: any) {
+    if (!speakOnRef.current || !session) return;
+    const last = (session.messages || []).filter((m: any) => m.role === "persona").pop();
+    if (last) speakText(String(last.content).replace(/^[^:]+:\s*/, ""));
   }
   async function loadDiag() {
     try { const r = await api("/api/diagnostic"); setDiag(r.diagnostic || null); setDiagDoneCount(r.doneCount || 0); } catch { /* abaikan */ }
@@ -354,6 +521,7 @@ export default function Home() {
       const d = await api(`/api/sessions/detail?id=${r.session.id}`); setSessionDetail(d.session);
       setLastEngine(""); setCustomStage("Pembuka"); setCustomTurns(0);
       setTab("latihan");
+      speakOpening(d.session);
     } catch (err: any) { setMsg(err.message); }
     setBusy(false);
   }
@@ -443,6 +611,7 @@ export default function Home() {
       setActiveSession({ ...r.session, scenario: sc });
       const d = await api(`/api/sessions/detail?id=${r.session.id}`); setSessionDetail(d.session);
       setTab("latihan");
+      speakOpening(d.session);
     } catch (e: any) { setMsg(e.message); }
     setBusy(false);
   }
@@ -466,10 +635,19 @@ export default function Home() {
     setBusy(false);
   }
   async function sendChat() {
-    if (!chatInput.trim() || !activeSession) return;
+    if (!activeSession) return;
+    // Mengirim jawaban menghentikan mikrofon untuk selamanya: komit teks
+    // final dari buffer suara dan pakai durasi SELURUH sesi mikrofon.
+    let content = chatInput;
+    let voicePayload = lastVoice;
+    if (voiceWantedRef.current || voiceBufRef.current) {
+      const fin = finalizeVoice();
+      if (fin) { content = fin.text; if (fin.voice) voicePayload = fin.voice; }
+    }
+    if (!content.trim()) return;
     setBusy(true);
     try {
-      const r = await api(`/api/sessions/message?id=${activeSession.id}`, "POST", { content: chatInput, voice: lastVoice || undefined });
+      const r = await api(`/api/sessions/message?id=${activeSession.id}`, "POST", { content, voice: voicePayload || undefined });
       setLastVoice(null);
       setChatInput("");
       if (r.engine) setLastEngine(r.engine);
@@ -477,7 +655,7 @@ export default function Home() {
       if (r.stage) setCustomStage(r.stage);
       if (typeof r.userTurns === "number") setCustomTurns(r.userTurns);
       const d = await api(`/api/sessions/detail?id=${activeSession.id}`); setSessionDetail(d.session);
-      if (speakOn) { const last = (d.session.messages || []).filter((m: any) => m.role === "persona").pop(); if (last) speakText(String(last.content).replace(/^[^:]+:\s*/, "")); }
+      if (speakOnRef.current) { const last = (d.session.messages || []).filter((m: any) => m.role === "persona").pop(); if (last) speakText(String(last.content).replace(/^[^:]+:\s*/, "")); }
       if (r.maxReached) setMsg(`Kamu sudah memakai ${r.maxTurns} giliran — batas Roleplay Bebas. Akhiri sesi ini untuk melihat evaluasimu.`);
       else if (r.adaptation) setMsg(`Adaptasi: Level ${r.adaptation.fromLevel} → ${r.adaptation.toLevel}. ${r.adaptReason || ""}`);
     } catch (e: any) { setMsg(e.message); }
@@ -485,6 +663,10 @@ export default function Home() {
   }
   async function endSession() {
     if (!activeSession) return;
+    // Mengakhiri sesi juga menghentikan mikrofon untuk selamanya
+    // dan mendiamkan suara persona.
+    stopSpeaking();
+    if (voiceWantedRef.current || voiceBufRef.current) finalizeVoice();
     setBusy(true);
     try {
       const r = await api(`/api/sessions/end?id=${activeSession.id}`, "POST", {});
@@ -606,6 +788,8 @@ export default function Home() {
   ];
   if (isOwner) NAV_ITEMS.push(["umpan-balik", "Umpan Balik Pengguna"]);
   function goTab(v: string) {
+    // Pindah tab/view → persona berhenti bicara.
+    stopSpeaking();
     setTab(v);
     if (v === "laporan") loadReport();
     if (v === "beranda") { loadDiag(); loadDrills(); loadReport(); }
@@ -1320,18 +1504,19 @@ export default function Home() {
                   <div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button className="btn-ghost" type="button" disabled={busy || paused} onClick={toggleMic} title="Bicara lewat mikrofon — transkripsi di browser, audio tidak diunggah" aria-label={voiceOn ? "Berhenti bicara" : "Bicara lewat mikrofon"}>{voiceOn ? "■ Berhenti Bicara" : "🎤 Bicara"}</button>
+                      <button className="btn-ghost" type="button" onClick={toggleSpeak} aria-pressed={speakOn} aria-label={speakOn ? "Matikan suara persona" : "Nyalakan suara persona"} title="Mode Percakapan Suara — balasan persona dibacakan dengan suara Bahasa Indonesia dari browser">{speakOn ? "🔊 Suara Persona: Nyala" : "🔇 Suara Persona: Mati"}</button>
                       <input value={chatInput} disabled={paused} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !paused) sendChat(); }} placeholder="Tulis jawabanmu di sini… atau tekan 🎤 Bicara" />
                       <button className="btn" disabled={busy || paused} onClick={sendChat}>Kirim</button>
                       <button className="btn-ghost" type="button" onClick={() => setShowHint(!showHint)} aria-label="Tampilkan atau sembunyikan petunjuk">💡 Petunjuk</button>
                       <button className="btn" disabled={busy} onClick={endSession}>Akhiri sesi &amp; buat laporan</button>
                     </div>
                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
-                      <label className="small"><input type="checkbox" checked={speakOn} onChange={(e) => { setSpeakOn(e.target.checked); if (!e.target.checked && "speechSynthesis" in window) window.speechSynthesis.cancel(); }} /> Dengarkan balasan persona (suara, id-ID)</label>
                       <span className="small">{voiceSupported ? "Mikrofon didukung browser ini." : "Browser ini belum mendukung input suara — ketik jawabanmu."}</span>
                     </div>
+                    {personaSpeaking && <p className="small" style={{ marginTop: 6 }}>🔊 Persona sedang bicara…</p>}
                     {voiceMsg && <p className="small" style={{ marginTop: 6 }}>{voiceMsg}</p>}
                     {lastVoice && <p className="small" style={{ marginTop: 6 }}>Jawaban suaramu siap dikirim — durasi bicara {Math.round(lastVoice.durationSec)} detik. Kecepatan dan kata pengisi akan dihitung dari transkripsi saat kamu tekan Kirim.</p>}
-                    <p className="small" style={{ marginTop: 6 }}>Suara tidak direkam atau diunggah — yang dikirim hanya teks hasil transkripsi dan metriknya (durasi, kecepatan, kata pengisi).</p>
+                    <p className="small" style={{ marginTop: 6 }}>Pengenalan suara diproses oleh browser (di Chrome lewat server Google) — kecepatan tergantung koneksimu. Audio tidak pernah diunggah atau disimpan.</p>
                     {(activeSession?.isCustom || sessionDetail.customRoleplay || sessionDetail.customScenario) && (
                       <p className="small" style={{ marginTop: 8 }}>{activeSession?.customScenario || sessionDetail.customScenario ? "Skenarioku" : "Roleplay Bebas"}: giliran {customTurns}/12 · Tahap: {customStage || "Pembuka"}. Kalau sudah 12 giliran, akhiri sesi untuk melihat evaluasimu.</p>
                     )}
@@ -1385,7 +1570,7 @@ export default function Home() {
                           <p className="small">Roleplay Bebas ini bisa disimpan ke Skenarioku supaya bisa dimainkan lagi kapan saja, dengan rubrik yang sama.</p>
                           <button className="btn-ghost" disabled={busy} onClick={saveRoleplayAsScenario}>Simpan sebagai skenario</button>
                           {saveFromRoleplayMsg && (
-                            <p className="small" style={{ marginTop: 8 }}>{saveFromRoleplayMsg} <button className="btn-ghost" type="button" onClick={() => { loadLibrary(); setTab("studio"); setStudioSub("skenarioku"); }}>Lihat di Skenarioku →</button></p>
+                            <p className="small" style={{ marginTop: 8 }}>{saveFromRoleplayMsg} <button className="btn-ghost" type="button" onClick={() => { stopSpeaking(); loadLibrary(); setTab("studio"); setStudioSub("skenarioku"); }}>Lihat di Skenarioku →</button></p>
                           )}
                         </div>
                       )}
@@ -1433,7 +1618,7 @@ export default function Home() {
               <option value="santai">Santai — bahasa sehari-hari</option>
               <option value="formal">Formal — bahasa baku, sapaan &ldquo;Anda&rdquo;</option>
             </select>
-            <label className="small" style={{ marginTop: 12, display: "block" }}><input type="checkbox" checked={speakOn} onChange={(e) => { setSpeakOn(e.target.checked); if (!e.target.checked && "speechSynthesis" in window) window.speechSynthesis.cancel(); }} /> Dengarkan balasan persona (suara, id-ID)</label>
+            <label className="small" style={{ marginTop: 12, display: "block" }}><input type="checkbox" checked={speakOn} onChange={(e) => setSpeakPref(e.target.checked)} /> Suara Persona — balasan persona dibacakan (Percakapan Suara, id-ID)</label>
             <p className="small" style={{ marginTop: 8 }}>Gaya umpan balik evaluator mengikuti skenario yang kamu mainkan (mis. Jujur Keras, Supportif, Seimbang, Detail Teknis) — tampil di kartu skenario dan di laporan evaluasi.</p>
           </div>
         )}
